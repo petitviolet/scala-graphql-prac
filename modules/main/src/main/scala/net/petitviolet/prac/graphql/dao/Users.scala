@@ -11,6 +11,13 @@ class UsersDao {
   )
 
   def findById(id: Id): Option[Users] = data.get(id)
+
+  def findByEmail(emailOpt: Option[String]): Option[Users] = {
+    emailOpt.map { email =>
+      data.values.find { _.email == email }
+    } getOrElse None
+  }
+
   def findAllByIds(ids: Seq[Id]): Seq[Users] = ids collect data
 
   def findAll: Seq[Users] = data.values.toList
