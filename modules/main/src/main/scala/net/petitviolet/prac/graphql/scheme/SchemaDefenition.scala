@@ -10,34 +10,49 @@ import sangria.schema._
 import scala.concurrent.Future
 
 object SchemaDefinition {
+  val schemas: Seq[MySchema] = List(
+    UserSchema,
+    TodoSchema,
+  )
+
   val queryType = ObjectType.apply(
     "Query",
     fields[dao.container, Unit](
-      Field("users", UserSchema.query, resolve = _ => ()),
-      Field("todos", TodoSchema.query, resolve = _ => ()),
+      schemas.map {_.asField}: _*
     )
   )
   val query = Schema.apply(queryType)
 }
 
+trait MySchema {
+  def name: String
+  def query: ObjectType[dao.container, Unit]
+  def asField: Field[dao.container, Unit] = Field(name,  query, resolve = _ => ())
+}
 
-object TodoSchema {
-  private val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:SS")
-  val todoType: ObjectType[dao.container, Todos] = ObjectType(
-    "Todo",
-    fields[dao.container, Todos](
-      Field("id", StringType, resolve = _.value.id),
-      Field("name", StringType, resolve = _.value.title),
-      Field("description", StringType, resolve = _.value.description),
-      Field("deadline", StringType, resolve = _.value.deadLine.format(formatter)),
-      Field("user", OptionType(UserSchema.userType), resolve = { ctx =>
-        ctx.ctx.usersDao.findById(ctx.value.userId)
-      })
+object TodoSchema extends MySchema {
+
+  override def name = "todo"
+
+  val todoType: ObjectType[dao.container, Todos] = {
+    val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:SS")
+    ObjectType(
+      "Todo",
+      fields[dao.container, Todos](
+        Field("id", StringType, resolve = _.value.id),
+        Field("name", StringType, resolve = _.value.title),
+        Field("description", StringType, resolve = _.value.description),
+        Field("deadline", StringType, resolve = _.value.deadLine.format(formatter)),
+        Field("user", OptionType(UserSchema.userType), resolve = { ctx =>
+          ctx.ctx.usersDao.findById(ctx.value.userId)
+        })
+      )
     )
-  )
+  }
   val userId = Argument("user_id", StringType, "id of user")
 
   val query = ObjectType(
+    "TodoQuery",
     "TodoQuery",
     fields[dao.container, Unit](
       Field("all", ListType(todoType),
@@ -58,9 +73,12 @@ object TodoSchema {
   })(HasId(_.id))
 }
 
-object UserSchema {
+object UserSchema extends MySchema {
+  override def name = "user"
+
   val userType: ObjectType[Unit, Users] = ObjectType(
     "User",
+    "user type",
     fields[Unit, Users](
       Field("id", StringType, resolve = _.value.id),
       Field("name", StringType, resolve = _.value.name),
@@ -69,17 +87,30 @@ object UserSchema {
   )
 
   val Id = Argument("id", StringType, "id of user")
+  val Email = Argument("email", OptionInputType(StringType), "email of user")
 
   val query = ObjectType(
     "UserQuery",
+    "user query(all/by_id/by_email)",
     fields[dao.container, Unit](
       Field("all", ListType(userType),
+        description = Some("list all users"),
         arguments = Nil,
         resolve = { c => c.ctx.usersDao.findAll }
       ),
-      Field("search", OptionType(userType),
+      Field("by_id", OptionType(userType),
+        description = Some("find by id"),
         arguments = Id :: Nil,
-        resolve = c => c.ctx.usersDao.findById(c arg Id)
+        resolve = { c: Context[dao.container, Unit] =>
+          c.ctx.usersDao.findById(c arg Id)
+        }
+      ),
+      Field("by_email", OptionType(userType),
+        arguments = Email :: Nil,
+        description = Some("find by email"),
+        resolve = { c: Context[dao.container, Unit] =>
+          c.ctx.usersDao.findByEmail(c arg Email)
+        }
       )
     )
   )
