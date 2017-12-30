@@ -30,7 +30,7 @@ object main extends App {
 
   val _ = StdIn.readLine("input something\n")
 
-  println("shutdown...")
+  println("\nshutdown...\n")
 
   f.flatMap { b =>
     b.unbind()

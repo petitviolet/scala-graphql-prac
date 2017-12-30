@@ -1,5 +1,7 @@
 package net.petitviolet.prac.graphql.scheme
 
+import java.time.format.DateTimeFormatter
+
 import net.petitviolet.prac.graphql.dao
 import net.petitviolet.prac.graphql.dao.{Todos, Users}
 import sangria.execution.deferred.{Fetcher, HasId}
@@ -26,6 +28,7 @@ object TodoSchema {
       Field("id", StringType, resolve = _.value.id),
       Field("name", StringType, resolve = _.value.title),
       Field("description", StringType, resolve = _.value.description),
+      Field("deadline", StringType, resolve = _.value.deadLine.format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:SS"))),
     )
   )
   val userId = Argument("user_id", StringType, "id of user")
