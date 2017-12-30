@@ -7,11 +7,13 @@ case class Users(id: Id, name: String, email: String, createdAt: ZonedDateTime, 
 class UsersDao {
   import collection.mutable
   private val data: mutable.Map[Id, Users] = mutable.Map(
-    "hello" -> Users("1", "hello-user", "hello@example.com", ZonedDateTime.now(), ZonedDateTime.now())
+    "hello" -> Users("hello", "hello-user", "hello@example.com", ZonedDateTime.now(), ZonedDateTime.now())
   )
 
   def findById(id: Id): Option[Users] = data.get(id)
   def findAllByIds(ids: Seq[Id]): Seq[Users] = ids collect data
+
+  def findAll: Seq[Users] = data.values.toList
 
   def create(users: Users): Unit = data += (users.id -> users)
 

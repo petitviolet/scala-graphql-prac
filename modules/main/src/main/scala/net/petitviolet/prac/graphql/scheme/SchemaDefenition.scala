@@ -1,53 +1,85 @@
 package net.petitviolet.prac.graphql.scheme
 
 import net.petitviolet.prac.graphql.dao
-import net.petitviolet.prac.graphql.dao.{Todos, Users, UsersDao}
-import net.petitviolet.prac.graphql.model.{Entity, Todo, User}
+import net.petitviolet.prac.graphql.dao.{Todos, Users}
 import sangria.execution.deferred.{Fetcher, HasId}
-import sangria.macros.derive._
 import sangria.schema._
 
 import scala.concurrent.Future
 
 object SchemaDefinition {
-  val EntityInterface: InterfaceType[Unit, Entity] = InterfaceType(
-    "Entity",
-    fields[Unit, Entity](
-      Field("id", StringType, resolve = _.value.id.value)
+  val queryType = ObjectType.apply(
+    "Query",
+    fields[dao.container, Unit](
+      Field("user_query", UserSchema.query, resolve = _ => ()),
+      Field("todo_query", TodoSchema.query, resolve = _ => ()),
+    )
+  )
+  val query = Schema.apply(queryType)
+}
+
+
+object TodoSchema {
+  val todoType: ObjectType[Unit, Todos] = ObjectType(
+    "Todo",
+    fields[Unit, Todos](
+      Field("id", StringType, resolve = _.value.id),
+      Field("name", StringType, resolve = _.value.title),
+      Field("description", StringType, resolve = _.value.description),
+    )
+  )
+  val userId = Argument("user_id", StringType, "id of user")
+
+  val query = ObjectType(
+    "TodoQuery",
+    fields[dao.container, Unit](
+      Field("todos", ListType(todoType),
+        arguments = Nil,
+        resolve = { c => c.ctx.todoDao.findAll }
+      ),
+      Field("todo", ListType(todoType),
+        arguments = userId :: Nil,
+        resolve = c => c.ctx.todoDao.findAllByUserId(c arg userId)
+      )
     )
   )
 
-  val UserType: ObjectType[Unit, Users] = ObjectType(
+  val fetcher = Fetcher.caching({ (ctx: dao.container, ids: Seq[String]) =>
+    Future.successful {
+      ctx.todoDao.findAllByIds(ids)
+    }
+  })(HasId(_.id))
+}
+
+object UserSchema {
+  val userType: ObjectType[Unit, Users] = ObjectType(
     "User",
     fields[Unit, Users](
       Field("name", StringType, resolve = _.value.name),
       Field("email", StringType, resolve = _.value.email),
     )
   )
-  val user = Fetcher.caching({ (ctx: UsersDao, ids:Seq[String]) =>
-    Future.successful {
-      ctx.findAllByIds(ids)
-    }
-  })(HasId(_.id))
 
-//  val TodoType: ObjectType[Unit, Todos] = deriveObjectType[Unit, Todos](
-//    ObjectTypeDescription("Todo")
-//  )
-}
+  val Id = Argument("id", StringType, "id of user")
 
-object Query {
-  val userQuery = Schema(UserQuery.QueryType)
-}
-
-object UserQuery {
-  val Id = Argument("id", StringType)
-  val QueryType = ObjectType(
+  val query = ObjectType(
     "UserQuery",
-    fields[dao.UsersDao, Unit](
-      Field("user", OptionType(SchemaDefinition.UserType),
+    fields[dao.container, Unit](
+      Field("users", ListType(userType),
+        arguments = Nil,
+        resolve = { c => c.ctx.usersDao.findAll }
+      ),
+      Field("user", OptionType(userType),
         arguments = Id :: Nil,
-        resolve = c => c.ctx.findById(c arg Id)
+        resolve = c => c.ctx.usersDao.findById(c arg Id)
       )
     )
   )
+
+  val fetcher = Fetcher.caching({ (ctx: dao.container, ids: Seq[String]) =>
+    Future.successful {
+      ctx.usersDao.findAllByIds(ids)
+    }
+  })(HasId(_.id))
+
 }
