@@ -13,8 +13,8 @@ object SchemaDefinition {
   val queryType = ObjectType.apply(
     "Query",
     fields[dao.container, Unit](
-      Field("user_query", UserSchema.query, resolve = _ => ()),
-      Field("todo_query", TodoSchema.query, resolve = _ => ()),
+      Field("users", UserSchema.query, resolve = _ => ()),
+      Field("todos", TodoSchema.query, resolve = _ => ()),
     )
   )
   val query = Schema.apply(queryType)
@@ -22,13 +22,17 @@ object SchemaDefinition {
 
 
 object TodoSchema {
-  val todoType: ObjectType[Unit, Todos] = ObjectType(
+  private val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:SS")
+  val todoType: ObjectType[dao.container, Todos] = ObjectType(
     "Todo",
-    fields[Unit, Todos](
+    fields[dao.container, Todos](
       Field("id", StringType, resolve = _.value.id),
       Field("name", StringType, resolve = _.value.title),
       Field("description", StringType, resolve = _.value.description),
-      Field("deadline", StringType, resolve = _.value.deadLine.format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:SS"))),
+      Field("deadline", StringType, resolve = _.value.deadLine.format(formatter)),
+      Field("user", OptionType(UserSchema.userType), resolve = { ctx =>
+        ctx.ctx.usersDao.findById(ctx.value.userId)
+      })
     )
   )
   val userId = Argument("user_id", StringType, "id of user")
@@ -36,11 +40,11 @@ object TodoSchema {
   val query = ObjectType(
     "TodoQuery",
     fields[dao.container, Unit](
-      Field("todos", ListType(todoType),
+      Field("all", ListType(todoType),
         arguments = Nil,
         resolve = { c => c.ctx.todoDao.findAll }
       ),
-      Field("todo", ListType(todoType),
+      Field("search", ListType(todoType),
         arguments = userId :: Nil,
         resolve = c => c.ctx.todoDao.findAllByUserId(c arg userId)
       )
@@ -58,6 +62,7 @@ object UserSchema {
   val userType: ObjectType[Unit, Users] = ObjectType(
     "User",
     fields[Unit, Users](
+      Field("id", StringType, resolve = _.value.id),
       Field("name", StringType, resolve = _.value.name),
       Field("email", StringType, resolve = _.value.email),
     )
@@ -68,11 +73,11 @@ object UserSchema {
   val query = ObjectType(
     "UserQuery",
     fields[dao.container, Unit](
-      Field("users", ListType(userType),
+      Field("all", ListType(userType),
         arguments = Nil,
         resolve = { c => c.ctx.usersDao.findAll }
       ),
-      Field("user", OptionType(userType),
+      Field("search", OptionType(userType),
         arguments = Id :: Nil,
         resolve = c => c.ctx.usersDao.findById(c arg Id)
       )
