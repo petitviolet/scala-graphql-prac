@@ -1,40 +1,46 @@
 package net.petitviolet.prac.graphql.scheme
 
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.Executors
 
 import net.petitviolet.prac.graphql.dao
 import net.petitviolet.prac.graphql.dao.{Todos, Users}
-import sangria.execution.deferred.{Fetcher, HasId}
+import sangria.execution.deferred.{DeferredResolver, Fetcher, HasId}
 import sangria.schema._
 
-import scala.concurrent.Future
+import scala.concurrent.{ExecutionContext, Future}
 
 object SchemaDefinition {
-  val schemas: Seq[MySchema] = List(
+  lazy val schemas: Seq[MySchema] = List(
     UserSchema,
     TodoSchema,
   )
 
-  val queryType = ObjectType.apply(
+  lazy val queryType = ObjectType.apply(
     "Query",
     fields[dao.container, Unit](
       schemas.map {_.asField}: _*
     )
   )
-  val query = Schema.apply(queryType)
+  lazy val resolver: DeferredResolver[dao.container] = DeferredResolver.fetchers(schemas.map { _.fetcher }: _*)
+
+  lazy val query = Schema.apply(queryType)
 }
 
-trait MySchema {
+sealed trait MySchema {
   def name: String
   def query: ObjectType[dao.container, Unit]
   def asField: Field[dao.container, Unit] = Field(name,  query, resolve = _ => ())
+  def fetcher: Fetcher[dao.container, _, _, _]
+
+  protected implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2))
 }
 
 object TodoSchema extends MySchema {
 
   override def name = "todo"
 
-  val todoType: ObjectType[dao.container, Todos] = {
+  lazy val todoType: ObjectType[dao.container, Todos] = {
     val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:SS")
     ObjectType(
       "Todo",
@@ -44,14 +50,14 @@ object TodoSchema extends MySchema {
         Field("description", StringType, resolve = _.value.description),
         Field("deadline", StringType, resolve = _.value.deadLine.format(formatter)),
         Field("user", OptionType(UserSchema.userType), resolve = { ctx =>
-          ctx.ctx.usersDao.findById(ctx.value.userId)
+          UserSchema.fetcher.defer(ctx.value.userId)
         })
       )
     )
   }
-  val userId = Argument("user_id", StringType, "id of user")
+  lazy val userId = Argument("user_id", StringType, "id of user")
 
-  val query = ObjectType(
+  lazy val query = ObjectType(
     "TodoQuery",
     "TodoQuery",
     fields[dao.container, Unit](
@@ -66,17 +72,18 @@ object TodoSchema extends MySchema {
     )
   )
 
-  val fetcher = Fetcher.caching({ (ctx: dao.container, ids: Seq[String]) =>
-    Future.successful {
-      ctx.todoDao.findAllByIds(ids)
-    }
-  })(HasId(_.id))
+  lazy val fetcher: Fetcher[dao.container, Todos, Todos, String] = Fetcher.caching {
+    (ctx: dao.container, ids: Seq[String]) =>
+      Future.apply {
+        ctx.todoDao.findAllByIds(ids)
+      }
+  }(HasId(_.id))
 }
 
 object UserSchema extends MySchema {
   override def name = "user"
 
-  val userType: ObjectType[Unit, Users] = ObjectType(
+  lazy val userType: ObjectType[Unit, Users] = ObjectType(
     "User",
     "user type",
     fields[Unit, Users](
@@ -86,10 +93,10 @@ object UserSchema extends MySchema {
     )
   )
 
-  val Id = Argument("id", StringType, "id of user")
-  val Email = Argument("email", OptionInputType(StringType), "email of user")
+  lazy val Id = Argument("id", StringType, "id of user")
+  lazy val Email = Argument("email", OptionInputType(StringType), "email of user")
 
-  val query = ObjectType(
+  lazy val query = ObjectType(
     "UserQuery",
     "user query(all/by_id/by_email)",
     fields[dao.container, Unit](
@@ -115,10 +122,11 @@ object UserSchema extends MySchema {
     )
   )
 
-  val fetcher = Fetcher.caching({ (ctx: dao.container, ids: Seq[String]) =>
-    Future.successful {
-      ctx.usersDao.findAllByIds(ids)
-    }
-  })(HasId(_.id))
+  lazy val fetcher: Fetcher[dao.container, Users, Users, String] = Fetcher.caching {
+    (ctx: dao.container, ids: Seq[String]) =>
+      Future.apply {
+        ctx.usersDao.findAllByIds(ids)
+      }
+  }(HasId(_.id))
 
 }

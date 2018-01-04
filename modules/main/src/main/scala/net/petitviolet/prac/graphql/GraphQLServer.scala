@@ -3,6 +3,7 @@ package net.petitviolet.prac.graphql
 import akka.http.scaladsl.model.StatusCodes
 import net.petitviolet.prac.graphql.scheme.SchemaDefinition
 import sangria.ast.Document
+import sangria.execution.deferred.DeferredResolver
 import sangria.execution.{ErrorWithResolver, Executor, QueryAnalysisError}
 import sangria.marshalling.sprayJson._
 import sangria.parser.QueryParser
@@ -27,19 +28,23 @@ object GraphQLServer {
 
     QueryParser.parse(query) map { queryDocument =>
       // query parsed successfully, time to execute it!
-      executeGraphQLQuery(SchemaDefinition.query, queryDocument, dao.container, vars, operation)
+      executeGraphQLQuery(SchemaDefinition.query, queryDocument, vars, operation,
+        dao.container, SchemaDefinition.resolver)
     }
   }
 
   private def executeGraphQLQuery[Repository](schema: Schema[Repository, Unit],
                                               queryDocument: Document,
-                                              repository: Repository,
                                               vars: JsObject,
-                                              operation: Option[String])(implicit ec: ExecutionContext) = {
+                                              operation: Option[String],
+                                              repository: Repository,
+                                              deferredResolver: DeferredResolver[Repository],
+                                             )(implicit ec: ExecutionContext) = {
     import StatusCodes._
     Executor.execute(schema, queryDocument, repository,
       variables = vars,
       operationName = operation,
+      deferredResolver = deferredResolver,
     ).map { OK -> _ }
       .recover {
         case error: QueryAnalysisError => BadRequest -> error.resolveError
