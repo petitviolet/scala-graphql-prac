@@ -87,9 +87,9 @@ object UserSchema extends MySchema {
     "User",
     "user type",
     fields[Unit, Users](
-      Field("id", StringType, resolve = _.value.id),
-      Field("name", StringType, resolve = _.value.name),
-      Field("email", StringType, resolve = _.value.email),
+      Field("id", StringType, description = Some("id of user"), resolve = _.value.id),
+      Field("name", StringType, description = Some("name of user"), resolve = _.value.name),
+      Field("email", StringType, description = Some("email of user"), resolve = _.value.email),
     )
   )
 
