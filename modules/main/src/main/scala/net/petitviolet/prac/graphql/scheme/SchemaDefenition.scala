@@ -19,18 +19,32 @@ object SchemaDefinition {
   lazy val queryType = ObjectType.apply(
     "Query",
     fields[dao.container, Unit](
-      schemas.map {_.asField}: _*
+      schemas.map {_.asQueryField}: _*
     )
   )
+  lazy val mutationType = {
+    val mutationFields = schemas.flatMap {_.asMutationField}
+    if (mutationFields.isEmpty) None
+    else Option.apply {
+      ObjectType.apply(
+        "Mutation",
+        fields[dao.container, Unit](
+          mutationFields: _*
+        )
+      )
+    }
+  }
   lazy val resolver: DeferredResolver[dao.container] = DeferredResolver.fetchers(schemas.map { _.fetcher }: _*)
 
-  lazy val query = Schema.apply(queryType)
+  lazy val schema = Schema.apply(queryType, mutationType)
 }
 
 sealed trait MySchema {
   def name: String
   def query: ObjectType[dao.container, Unit]
-  def asField: Field[dao.container, Unit] = Field(name,  query, resolve = _ => ())
+  def mutation: Option[ObjectType[dao.container, Unit]] = None
+  def asQueryField: Field[dao.container, Unit] = Field(name,  query, resolve = _ => ())
+  def asMutationField: Option[Field[dao.container, Unit]] = mutation.map { m => Field(name, m, resolve = _ => ()) }
   def fetcher: Fetcher[dao.container, _, _, _]
 
   protected implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2))
@@ -46,7 +60,7 @@ object TodoSchema extends MySchema {
       "Todo",
       fields[dao.container, Todos](
         Field("id", StringType, resolve = _.value.id),
-        Field("name", StringType, resolve = _.value.title),
+        Field("title", StringType, resolve = _.value.title),
         Field("description", StringType, resolve = _.value.description),
         Field("deadline", StringType, resolve = _.value.deadLine.format(formatter)),
         Field("user", OptionType(UserSchema.userType), resolve = { ctx =>
@@ -71,6 +85,28 @@ object TodoSchema extends MySchema {
       )
     )
   )
+
+  lazy val id = Argument("id", StringType, "id of todo")
+  lazy val titleArg = Argument("title", OptionInputType(StringType), "title of todo")
+  lazy val descriptionArg = Argument("description", OptionInputType(StringType), "description of todo")
+  override lazy val mutation = Some(ObjectType(
+    "TodoMutation",
+    "TodoMutation",
+    fields[dao.container, Unit](
+      Field("update", OptionType(todoType),
+        arguments = id :: userId :: titleArg :: descriptionArg :: Nil,
+        resolve = { ctx =>
+          ctx.ctx.todoDao.findById(ctx arg id).collect {
+            case todo if todo.userId == ctx.arg(userId) =>
+              val title = ctx.arg(titleArg) getOrElse todo.title
+              val description = ctx.arg(descriptionArg) getOrElse todo.description
+              val updatedTodo = todo.update(title, description)
+              ctx.ctx.todoDao.update(updatedTodo)
+          }
+        }
+      )
+    )
+  ))
 
   lazy val fetcher: Fetcher[dao.container, Todos, Todos, String] = Fetcher.caching {
     (ctx: dao.container, ids: Seq[String]) =>

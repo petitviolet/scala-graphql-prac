@@ -3,7 +3,20 @@ package net.petitviolet.prac.graphql.dao
 import java.time.ZonedDateTime
 
 case class Todos(id: Id, title: String, description: String, userId: Id,
-                 deadLine: ZonedDateTime, createdAt: ZonedDateTime, updatedAt: ZonedDateTime)
+                 deadLine: ZonedDateTime, createdAt: ZonedDateTime, updatedAt: ZonedDateTime) {
+  def update(newTitle: String, newDescription: String): Todos = {
+    copy(title = newTitle, description = newDescription, updatedAt = ZonedDateTime.now)
+  }
+}
+
+object Todos {
+
+  def create(userId: String, title: String, description: String): Todos = {
+    val now = ZonedDateTime.now()
+    apply(generateId, title, description, userId, now, now, now)
+  }
+
+}
 
 class TodosDao {
   import collection.mutable
@@ -23,8 +36,14 @@ class TodosDao {
 
   def findAllByIds(ids: Seq[Id]): Seq[Todos] = ids collect data
 
-  def create(users: Todos): Unit = data += (users.id -> users)
+  def create(todos: Todos): Todos = {
+    data += (todos.id -> todos)
+    todos
+  }
 
-  def update(users: Todos): Unit = data.update(users.id, users)
+  def update(todos: Todos): Todos = {
+    data.update(todos.id, todos)
+    todos
+  }
 }
 
