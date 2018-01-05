@@ -16,10 +16,11 @@ val commonDependencies = Seq(
   "org.scalatest" %% "scalatest" % "3.0.4" % Test,
   "org.scalacheck" %% "scalacheck" % "1.13.4" % Test
 )
-def commonSettings(name: String) = Seq(
+def commonSettings(_name: String) = Seq(
   scalaVersion := scala,
   version := libVersion,
-  libraryDependencies ++= commonDependencies
+  libraryDependencies ++= commonDependencies,
+  name := _name,
 )
 
 lazy val gaphqlPrac = (project in file("."))
