@@ -21,34 +21,48 @@ object GraphQLServer {
 
     val vars = fields.get("variables") match {
       case Some(obj: JsObject) => obj
-      case _ => JsObject.empty
+      case _                   => JsObject.empty
     }
 
     val Some(JsString(document)) = fields.get("query") orElse fields.get("mutation")
 
     Future.fromTry(QueryParser.parse(document)) flatMap { queryDocument =>
       // query parsed successfully, time to execute it!
-      executeGraphQL(SchemaDefinition.schema, queryDocument, vars, operation,
-        dao.container, SchemaDefinition.resolver)
+      executeGraphQL(
+        SchemaDefinition.schema,
+        queryDocument,
+        vars,
+        operation,
+        dao.container,
+        SchemaDefinition.resolver
+      )
     }
   }
 
-  private def executeGraphQL[Repository](schema: Schema[Repository, Unit],
-                                         document: Document,
-                                         vars: JsObject,
-                                         operation: Option[String],
-                                         repository: Repository,
-                                         deferredResolver: DeferredResolver[Repository],
-                                        )(implicit ec: ExecutionContext): Future[(StatusCode, JsValue)] = {
+  private def executeGraphQL[Repository](
+      schema: Schema[Repository, Unit],
+      document: Document,
+      vars: JsObject,
+      operation: Option[String],
+      repository: Repository,
+      deferredResolver: DeferredResolver[Repository],
+  )(implicit ec: ExecutionContext): Future[(StatusCode, JsValue)] = {
     import StatusCodes._
-    Executor.execute(schema, document, repository,
-      variables = vars,
-      operationName = operation,
-      deferredResolver = deferredResolver,
-    ).map { jsValue => OK -> jsValue }
+    Executor
+      .execute(
+        schema,
+        document,
+        repository,
+        variables = vars,
+        operationName = operation,
+        deferredResolver = deferredResolver,
+      )
+      .map { jsValue =>
+        OK -> jsValue
+      }
       .recover {
         case error: QueryAnalysisError => BadRequest -> error.resolveError
-        case error: ErrorWithResolver => InternalServerError -> error.resolveError
+        case error: ErrorWithResolver  => InternalServerError -> error.resolveError
       }
 
   }

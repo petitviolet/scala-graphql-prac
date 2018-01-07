@@ -2,10 +2,19 @@ package net.petitviolet.prac.graphql.dao
 
 import java.time.ZonedDateTime
 
-case class Todos(id: Id, title: String, description: String, userId: Id,
-                 deadLine: ZonedDateTime, createdAt: ZonedDateTime, updatedAt: ZonedDateTime) {
+case class Todos(id: Id,
+                 title: String,
+                 description: String,
+                 userId: Id,
+                 deadLine: ZonedDateTime,
+                 createdAt: ZonedDateTime,
+                 updatedAt: ZonedDateTime) {
   def update(newTitle: String, newDescription: String): Todos = {
-    copy(title = newTitle, description = newDescription, updatedAt = ZonedDateTime.now)
+    copy(
+      title = newTitle,
+      description = newDescription,
+      updatedAt = ZonedDateTime.now
+    )
   }
 }
 
@@ -13,7 +22,15 @@ object Todos {
 
   def create(userId: String, title: String, description: String): Todos = {
     val now = ZonedDateTime.now()
-    apply(generateId, title, description, userId, now, now, now)
+    apply(
+      generateId,
+      title,
+      description,
+      userId,
+      now,
+      now,
+      now
+    )
   }
 
 }
@@ -23,16 +40,25 @@ class TodosDao {
   def now = ZonedDateTime.now()
 
   private val data: mutable.Map[Id, Todos] = mutable.Map(
-    "todo-1" -> Todos("todo-1", "title!", "description!", "hello", now, now, now)
+    "todo-1" -> Todos(
+      "todo-1",
+      "title!",
+      "description!",
+      "hello",
+      now,
+      now,
+      now
+    )
   )
 
   def findById(id: Id): Option[Todos] = data.get(id)
 
   def findAll: Seq[Todos] = data.values.toList
 
-  def findAllByUserId(userId: Id): Seq[Todos] = data.collect {
-    case (_, todo) if todo.userId == userId => todo
-  }(collection.breakOut)
+  def findAllByUserId(userId: Id): Seq[Todos] =
+    data.collect {
+      case (_, todo) if todo.userId == userId => todo
+    }(collection.breakOut)
 
   def findAllByIds(ids: Seq[Id]): Seq[Todos] = ids collect data
 
@@ -42,8 +68,10 @@ class TodosDao {
   }
 
   def update(todos: Todos): Todos = {
-    data.update(todos.id, todos)
+    data.update(
+      todos.id,
+      todos
+    )
     todos
   }
 }
-

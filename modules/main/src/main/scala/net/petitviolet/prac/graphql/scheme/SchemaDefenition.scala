@@ -19,22 +19,25 @@ object SchemaDefinition {
   lazy val queryType = ObjectType.apply(
     "Query",
     fields[dao.container, Unit](
-      schemas.map {_.asQueryField}: _*
+      schemas.map { _.asQueryField }: _*
     )
   )
   lazy val mutationType = {
-    val mutationFields = schemas.flatMap {_.asMutationField}
+    val mutationFields = schemas.flatMap { _.asMutationField }
     if (mutationFields.isEmpty) None
-    else Option.apply {
-      ObjectType.apply(
-        "Mutation",
-        fields[dao.container, Unit](
-          mutationFields: _*
+    else
+      Option.apply {
+        ObjectType.apply(
+          "Mutation",
+          fields[dao.container, Unit](
+            mutationFields: _*
+          )
         )
-      )
-    }
+      }
   }
-  lazy val resolver: DeferredResolver[dao.container] = DeferredResolver.fetchers(schemas.map { _.fetcher }: _*)
+  lazy val resolver: DeferredResolver[dao.container] = DeferredResolver.fetchers(schemas.map {
+    _.fetcher
+  }: _*)
 
   lazy val schema = Schema.apply(queryType, mutationType)
 }
@@ -43,11 +46,14 @@ sealed trait MySchema {
   def name: String
   def query: ObjectType[dao.container, Unit]
   def mutation: Option[ObjectType[dao.container, Unit]] = None
-  def asQueryField: Field[dao.container, Unit] = Field(name,  query, resolve = _ => ())
-  def asMutationField: Option[Field[dao.container, Unit]] = mutation.map { m => Field(name, m, resolve = _ => ()) }
+  def asQueryField: Field[dao.container, Unit] = Field(name, query, resolve = _ => ())
+  def asMutationField: Option[Field[dao.container, Unit]] = mutation.map { m =>
+    Field(name, m, resolve = _ => ())
+  }
   def fetcher: Fetcher[dao.container, _, _, _]
 
-  protected implicit val ec: ExecutionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2))
+  protected implicit val ec: ExecutionContext =
+    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2))
 }
 
 object TodoSchema extends MySchema {
@@ -75,11 +81,12 @@ object TodoSchema extends MySchema {
     "TodoQuery",
     "TodoQuery",
     fields[dao.container, Unit](
-      Field("all", ListType(todoType),
-        arguments = Nil,
-        resolve = { c => c.ctx.todoDao.findAll }
-      ),
-      Field("search", ListType(todoType),
+      Field("all", ListType(todoType), arguments = Nil, resolve = { c =>
+        c.ctx.todoDao.findAll
+      }),
+      Field(
+        "search",
+        ListType(todoType),
         arguments = userId :: Nil,
         resolve = c => c.ctx.todoDao.findAllByUserId(c arg userId)
       )
@@ -88,25 +95,29 @@ object TodoSchema extends MySchema {
 
   lazy val id = Argument("id", StringType, "id of todo")
   lazy val titleArg = Argument("title", OptionInputType(StringType), "title of todo")
-  lazy val descriptionArg = Argument("description", OptionInputType(StringType), "description of todo")
-  override lazy val mutation = Some(ObjectType(
-    "TodoMutation",
-    "TodoMutation",
-    fields[dao.container, Unit](
-      Field("update", OptionType(todoType),
-        arguments = id :: userId :: titleArg :: descriptionArg :: Nil,
-        resolve = { ctx =>
-          ctx.ctx.todoDao.findById(ctx arg id).collect {
-            case todo if todo.userId == ctx.arg(userId) =>
-              val title = ctx.arg(titleArg) getOrElse todo.title
-              val description = ctx.arg(descriptionArg) getOrElse todo.description
-              val updatedTodo = todo.update(title, description)
-              ctx.ctx.todoDao.update(updatedTodo)
+  lazy val descriptionArg =
+    Argument("description", OptionInputType(StringType), "description of todo")
+  override lazy val mutation = Some(
+    ObjectType(
+      "TodoMutation",
+      "TodoMutation",
+      fields[dao.container, Unit](
+        Field(
+          "update",
+          OptionType(todoType),
+          arguments = id :: userId :: titleArg :: descriptionArg :: Nil,
+          resolve = { ctx =>
+            ctx.ctx.todoDao.findById(ctx arg id).collect {
+              case todo if todo.userId == ctx.arg(userId) =>
+                val title = ctx.arg(titleArg) getOrElse todo.title
+                val description = ctx.arg(descriptionArg) getOrElse todo.description
+                val updatedTodo = todo.update(title, description)
+                ctx.ctx.todoDao.update(updatedTodo)
+            }
           }
-        }
+        )
       )
-    )
-  ))
+    ))
 
   lazy val fetcher: Fetcher[dao.container, Todos, Todos, String] = Fetcher.caching {
     (ctx: dao.container, ids: Seq[String]) =>
@@ -136,19 +147,27 @@ object UserSchema extends MySchema {
     "UserQuery",
     "user query(all/by_id/by_email)",
     fields[dao.container, Unit](
-      Field("all", ListType(userType),
+      Field(
+        "all",
+        ListType(userType),
         description = Some("list all users"),
         arguments = Nil,
-        resolve = { c => c.ctx.usersDao.findAll }
+        resolve = { c =>
+          c.ctx.usersDao.findAll
+        }
       ),
-      Field("by_id", OptionType(userType),
+      Field(
+        "by_id",
+        OptionType(userType),
         description = Some("find by id"),
         arguments = Id :: Nil,
         resolve = { c: Context[dao.container, Unit] =>
           c.ctx.usersDao.findById(c arg Id)
         }
       ),
-      Field("by_email", OptionType(userType),
+      Field(
+        "by_email",
+        OptionType(userType),
         arguments = Email :: Nil,
         description = Some("find by email"),
         resolve = { c: Context[dao.container, Unit] =>
