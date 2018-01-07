@@ -21,6 +21,7 @@ def commonSettings(_name: String) = Seq(
   version := libVersion,
   libraryDependencies ++= commonDependencies,
   name := _name,
+  trapExit := false,
 )
 
 lazy val gaphqlPrac = (project in file("."))
