@@ -3,6 +3,7 @@ package net.petitviolet.prac.graphql
 import java.util.concurrent.Executors
 
 import akka.actor.{ ActorSystem, Terminated }
+import akka.event.Logging
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server.Directives._
@@ -24,11 +25,18 @@ object main extends App {
   val route: Route =
     (post & path("graphql")) {
       entity(as[JsValue]) { jsObject =>
-        complete(GraphQLServer.execute(jsObject)(executionContext))
+        logRequestResult("/graphql", Logging.InfoLevel) {
+          complete(GraphQLServer.execute(jsObject)(executionContext))
+        }
       }
     } ~
+      (get & path("show")) {
+        complete(GraphQLServer.showSchema)
+      } ~
       get {
-        getFromResource("graphiql.html")
+        logRequestResult("/graphiql.html", Logging.InfoLevel) {
+          getFromResource("graphiql.html")
+        }
       }
 
   val host = sys.props.get("http.host") getOrElse "0.0.0.0"
