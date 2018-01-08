@@ -66,7 +66,7 @@ object TodoSchema extends MySchema {
     derive.AddFields(
       Field("user", OptionType(UserSchema.userType), resolve = {
         ctx: Context[dao.container, Todos] =>
-          UserSchema.fetcher.defer(ctx.value.userId)
+          DeferredValue(UserSchema.fetcher.defer(ctx.value.userId))
       })
     )
   )
