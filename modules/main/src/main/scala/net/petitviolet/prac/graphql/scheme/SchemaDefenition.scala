@@ -85,13 +85,13 @@ object TodoSchema extends MySchema {
     "TodoQuery",
     fields[dao.container, Unit](
       Field("all", ListType(todoType), arguments = Nil, resolve = { c =>
-        c.ctx.todoDao.findAll
+        c.ctx.todosDao.findAll
       }),
       Field(
         "search",
         ListType(todoType),
         arguments = userIdArg :: Nil,
-        resolve = c => c.ctx.todoDao.findAllByUserId(c arg userIdArg)
+        resolve = c => c.ctx.todosDao.findAllByUserId(c arg userIdArg)
       )
     )
   )
@@ -107,12 +107,12 @@ object TodoSchema extends MySchema {
             OptionType(todoType),
             arguments = idArg :: userIdArg :: titleArg :: descriptionArg :: Nil,
             resolve = { ctx =>
-              ctx.ctx.todoDao.findById(ctx arg idArg).collect {
+              ctx.ctx.todosDao.findById(ctx arg idArg).collect {
                 case todo if todo.userId == ctx.arg(userIdArg) =>
                   val title = ctx.arg(titleArg) getOrElse todo.title
                   val description = ctx.arg(descriptionArg) getOrElse todo.description
                   val updatedTodo = todo.update(title, description)
-                  ctx.ctx.todoDao.update(updatedTodo)
+                  ctx.ctx.todosDao.update(updatedTodo)
               }
             }
           )
@@ -123,7 +123,7 @@ object TodoSchema extends MySchema {
   lazy val fetcher: Fetcher[dao.container, Todos, Todos, String] = Fetcher.caching {
     (ctx: dao.container, ids: Seq[String]) =>
       Future.apply {
-        ctx.todoDao.findAllByIds(ids)
+        ctx.todosDao.findAllByIds(ids)
       }
   }
 }
