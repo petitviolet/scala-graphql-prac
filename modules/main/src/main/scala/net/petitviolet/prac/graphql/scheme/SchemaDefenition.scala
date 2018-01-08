@@ -52,20 +52,21 @@ sealed trait MySchema {
   }
   def fetcher: Fetcher[dao.container, _, _, _]
 
+  protected val threadNum: Int = 2
   protected implicit val ec: ExecutionContext =
-    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(2))
+    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(threadNum))
 }
 
 object TodoSchema extends MySchema {
 
   override def name = "todo"
 
-  lazy val todoType: ObjectType[dao.container, Todos] = {
+  lazy val todoType = {
     val formatter = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:SS")
     ObjectType(
       "Todo",
+      interfaces[dao.container, Todos](entityType[dao.container]),
       fields[dao.container, Todos](
-        Field("id", StringType, resolve = _.value.id),
         Field("title", StringType, resolve = _.value.title),
         Field("description", StringType, resolve = _.value.description),
         Field("deadline", StringType, resolve = _.value.deadLine.format(formatter)),
@@ -124,7 +125,7 @@ object TodoSchema extends MySchema {
       Future.apply {
         ctx.todoDao.findAllByIds(ids)
       }
-  }(HasId(_.id))
+  }
 }
 
 object UserSchema extends MySchema {
@@ -133,8 +134,8 @@ object UserSchema extends MySchema {
   lazy val userType: ObjectType[Unit, Users] = ObjectType(
     "User",
     "user type",
+    interfaces[Unit, Users](entityType[Unit]),
     fields[Unit, Users](
-      Field("id", StringType, description = Some("id of user"), resolve = _.value.id),
       Field("name", StringType, description = Some("name of user"), resolve = _.value.name),
       Field("email", StringType, description = Some("email of user"), resolve = _.value.email),
     )
@@ -143,7 +144,7 @@ object UserSchema extends MySchema {
   lazy val Id = Argument("id", StringType, "id of user")
   lazy val Email = Argument("email", OptionInputType(StringType), "email of user")
 
-  lazy val query = ObjectType(
+  lazy val query: ObjectType[dao.container, Unit] = ObjectType(
     "UserQuery",
     "user query(all/by_id/by_email)",
     fields[dao.container, Unit](
@@ -182,6 +183,6 @@ object UserSchema extends MySchema {
       Future.apply {
         ctx.usersDao.findAllByIds(ids)
       }
-  }(HasId(_.id))
+  }
 
 }

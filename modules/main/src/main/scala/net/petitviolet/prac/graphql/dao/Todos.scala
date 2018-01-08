@@ -8,7 +8,8 @@ case class Todos(id: Id,
                  userId: Id,
                  deadLine: ZonedDateTime,
                  createdAt: ZonedDateTime,
-                 updatedAt: ZonedDateTime) {
+                 updatedAt: ZonedDateTime)
+    extends Entity {
   def update(newTitle: String, newDescription: String): Todos = {
     copy(
       title = newTitle,
@@ -42,9 +43,18 @@ class TodosDao {
   private val data: mutable.Map[Id, Todos] = mutable.Map(
     "todo-1" -> Todos(
       "todo-1",
-      "title!",
-      "description!",
-      "hello",
+      "title1!",
+      "description1!",
+      "user-1",
+      now,
+      now,
+      now
+    ),
+    "todo-2" -> Todos(
+      "todo-2",
+      "title2!",
+      "description2!",
+      "user-1",
       now,
       now,
       now

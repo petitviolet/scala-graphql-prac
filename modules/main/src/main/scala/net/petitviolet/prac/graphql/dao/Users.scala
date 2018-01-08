@@ -7,25 +7,34 @@ case class Users(id: Id,
                  email: String,
                  createdAt: ZonedDateTime,
                  updatedAt: ZonedDateTime)
+    extends Entity
 
 class UsersDao {
   import collection.mutable
+  private def now = ZonedDateTime.now()
   private val data: mutable.Map[Id, Users] = mutable.Map(
-    "hello" -> Users(
-      "hello",
-      "hello-user",
-      "hello@example.com",
-      ZonedDateTime.now(),
-      ZonedDateTime.now()
-    )
+    "user-1" -> Users(
+      "user-1",
+      "hello-user-1",
+      "hello-1@example.com",
+      now,
+      now,
+    ),
+    "user-2" -> Users(
+      "user-2",
+      "hello-user-2",
+      "hello-2@example.com",
+      now,
+      now,
+    ),
   )
 
   def findById(id: Id): Option[Users] = data.get(id)
 
   def findByEmail(emailOpt: Option[String]): Option[Users] = {
-    emailOpt.map { email =>
+    emailOpt.flatMap { email =>
       data.values.find { _.email == email }
-    } getOrElse None
+    }
   }
 
   def findAllByIds(ids: Seq[Id]): Seq[Users] = ids collect data
