@@ -3,12 +3,12 @@ package net.petitviolet.prac.graphql.scheme
 import java.util.concurrent.Executors
 
 import net.petitviolet.prac.graphql.dao
-import net.petitviolet.prac.graphql.dao.{Todos, Users}
-import sangria.execution.deferred.{DeferredResolver, Fetcher}
+import net.petitviolet.prac.graphql.dao.{ Todos, Users }
+import sangria.execution.deferred.{ DeferredResolver, Fetcher }
 import sangria.schema._
 import sangria.macros.derive
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.{ ExecutionContext, Future }
 
 object SchemaDefinition {
   lazy val schemas: Seq[MySchema] = List(
@@ -16,13 +16,13 @@ object SchemaDefinition {
     TodoSchema,
   )
 
-  lazy val queryType = ObjectType.apply(
+  lazy val queryType: ObjectType[dao.container, Unit] = ObjectType.apply(
     "Query",
     fields[dao.container, Unit](
       schemas.map { _.asQueryField }: _*
     )
   )
-  lazy val mutationType = {
+  lazy val mutationType: Option[ObjectType[dao.container, Unit]] = {
     val mutationFields = schemas.flatMap { _.asMutationField }
     if (mutationFields.isEmpty) None
     else
@@ -35,7 +35,7 @@ object SchemaDefinition {
         )
       }
   }
-  lazy val resolver: DeferredResolver[dao.container] = DeferredResolver.fetchers (
+  lazy val resolver: DeferredResolver[dao.container] = DeferredResolver.fetchers(
     schemas.map { _.fetcher }: _*
   )
 
