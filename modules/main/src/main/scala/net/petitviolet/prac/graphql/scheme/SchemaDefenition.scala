@@ -11,7 +11,7 @@ import sangria.macros.derive
 import scala.concurrent.{ ExecutionContext, Future }
 
 object SchemaDefinition {
-  lazy val schemas: Seq[MySchema] = List(
+  private lazy val schemas: Seq[MySchema] = List(
     UserSchema,
     TodoSchema,
   )
