@@ -123,7 +123,7 @@ private object SchemaSample {
     }
   }
 
-  val myObjectType = derive.deriveObjectType[Unit, MyObject]()
+  val myObjectType: ObjectType[Unit, MyObject] = derive.deriveObjectType[Unit, MyObject]()
 
   lazy val myQuery: ObjectType[MyObjectRepository, Unit] = {
     ObjectType.apply(
@@ -143,13 +143,14 @@ private object SchemaSample {
     )
   }
 
-  val myObjectInputType = InputObjectType[MyObject]("MyObjectInput",
-                                                    List(
-                                                      InputField("id", LongType),
-                                                      InputField("name", StringType)
-                                                    ))
+  val myObjectInputType: InputObjectType[MyObject] =
+    InputObjectType[MyObject]("MyObjectInput",
+                              List(
+                                InputField("id", LongType),
+                                InputField("name", StringType)
+                              ))
 
-  implicit val myObjectInput = new FromInput[MyObject] {
+  implicit val myObjectInput: FromInput[MyObject] = new FromInput[MyObject] {
     override val marshaller: ResultMarshaller = CoercedScalaResultMarshaller.default
 
     override def fromResult(node: marshaller.Node): MyObject = {
@@ -159,7 +160,7 @@ private object SchemaSample {
   }
 
   lazy val myMutation: ObjectType[MyObjectRepository, Unit] = {
-    val inputMyObject = Argument("myobj", myObjectInputType)
+    val inputMyObject = Argument("my_object", myObjectInputType)
     ObjectType.apply(
       "MyMutation",
       fields[MyObjectRepository, Unit](
@@ -172,5 +173,6 @@ private object SchemaSample {
       )
     )
   }
-  lazy val schema = Schema(myQuery, Some(myMutation))
+
+  lazy val schema: Schema[MyObjectRepository, Unit] = Schema(myQuery, Some(myMutation))
 }
