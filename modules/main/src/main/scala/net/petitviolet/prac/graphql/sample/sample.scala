@@ -162,16 +162,26 @@ private object SchemaSample {
   }
 
   lazy val myMutation: ObjectType[MyObjectRepository, Unit] = {
-    val inputMyObject = Argument("my_object", myObjectInputType)
     ObjectType.apply(
       "MyMutation",
       fields[MyObjectRepository, Unit](
-        Field(
-          "store",
-          arguments = inputMyObject :: Nil,
-          fieldType = myObjectType,
-          resolve = c => c.ctx.store(c arg inputMyObject)
-        )
+        {
+          val inputMyObject = Argument("my_object", myObjectInputType)
+          Field(
+            "store",
+            arguments = inputMyObject :: Nil,
+            fieldType = myObjectType,
+            resolve = c => c.ctx.store(c arg inputMyObject)
+          )
+        }, {
+          val inputName = Argument("name", StringType)
+          Field(
+            "create",
+            arguments = inputName :: Nil,
+            fieldType = myObjectType,
+            resolve = c => c.ctx.create(c arg inputName)
+          )
+        }
       )
     )
   }
