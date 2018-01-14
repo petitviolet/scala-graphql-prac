@@ -107,19 +107,21 @@ private object SchemaSample {
   case class MyObject(id: Long, name: String)
   class MyObjectRepository {
     import scala.collection.mutable
-    private val data: mutable.ListBuffer[MyObject] = mutable.ListBuffer(
-      MyObject(1, "alice"),
-      MyObject(2, "bob"),
-      MyObject(3, "charles"),
+    private val data: mutable.Map[Long, MyObject] = mutable.LinkedHashMap(
+      1L -> MyObject(1, "alice"),
+      2L -> MyObject(2, "bob"),
+      3L -> MyObject(3, "charles"),
     )
 
-    def findAll: Seq[MyObject] = data
-    def findById(id: Long): Option[MyObject] = data.find { _.id == id }
+    def findAll: Seq[MyObject] = data.values.toList
+    def findById(id: Long): Option[MyObject] = data get id
     def store(obj: MyObject): MyObject = {
-      if (data.forall { _.id != obj.id }) {
-        data += obj
-      }
+      data += (obj.id -> obj)
       obj
+    }
+    def create(name: String): MyObject = {
+      val id = data.keys.max + 1
+      store(MyObject(id, name))
     }
   }
 
