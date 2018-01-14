@@ -58,6 +58,7 @@ object main extends App {
   }(ExecutionContext.global)
 
   Await.ready(x, 5.seconds)
+  sys.runtime.gc()
   println(s"shutdown completed!\n")
 
 //  sys.exit(0)
