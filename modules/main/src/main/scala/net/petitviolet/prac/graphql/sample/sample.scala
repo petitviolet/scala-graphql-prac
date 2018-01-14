@@ -14,12 +14,13 @@ import akka.stream.ActorMaterializer
 import sangria.execution._
 import sangria.macros.derive
 import sangria.marshalling.sprayJson._
+import sangria.marshalling._
 import sangria.parser.QueryParser
 import sangria.schema._
 import spray.json.{ JsObject, JsString, JsValue }
 
-import scala.concurrent.duration._
 import scala.concurrent._
+import scala.concurrent.duration._
 import scala.io.StdIn
 
 object sample extends App {
@@ -67,6 +68,8 @@ object sample extends App {
 }
 
 private object GraphQLServer {
+  private val repository = new SchemaSample.MyObjectRepository()
+
   def execute(jsValue: JsValue)(implicit ec: ExecutionContext): Future[(StatusCode, JsValue)] = {
     val JsObject(fields) = jsValue
     val operation = fields.get("operationName") collect {
@@ -85,7 +88,7 @@ private object GraphQLServer {
         .execute(
           SchemaSample.schema,
           queryDocument,
-          new SchemaSample.MyObjectRepository,
+          repository,
           operationName = operation,
           variables = vars
         )
@@ -102,17 +105,25 @@ private object GraphQLServer {
 
 private object SchemaSample {
   case class MyObject(id: Long, name: String)
-  class MyObjectRepository() {
-    private var data: Seq[MyObject] =
-      MyObject(1, "alice") ::
-        MyObject(2, "bob") ::
-        MyObject(3, "charles") ::
-        Nil
+  class MyObjectRepository {
+    import scala.collection.mutable
+    private val data: mutable.ListBuffer[MyObject] = mutable.ListBuffer(
+      MyObject(1, "alice"),
+      MyObject(2, "bob"),
+      MyObject(3, "charles"),
+    )
+
     def findAll: Seq[MyObject] = data
     def findById(id: Long): Option[MyObject] = data.find { _.id == id }
+    def store(obj: MyObject): MyObject = {
+      if (data.forall { _.id != obj.id }) {
+        data += obj
+      }
+      obj
+    }
   }
 
-  val myObj = derive.deriveObjectType[Unit, MyObject]()
+  val myObjectType = derive.deriveObjectType[Unit, MyObject]()
 
   lazy val myQuery: ObjectType[MyObjectRepository, Unit] = {
     ObjectType.apply(
@@ -122,14 +133,44 @@ private object SchemaSample {
           val idArg = Argument("id", LongType)
           Field(
             "find_by_id",
-            OptionType(myObj),
+            OptionType(myObjectType),
             arguments = idArg :: Nil,
             resolve = ctx => ctx.ctx.findById(ctx.arg(idArg))
           )
         },
-        Field("all", ListType(myObj), resolve = ctx => ctx.ctx.findAll),
+        Field("all", ListType(myObjectType), resolve = ctx => ctx.ctx.findAll),
       )
     )
   }
-  lazy val schema = Schema(myQuery)
+
+  val myObjectInputType = InputObjectType[MyObject]("MyObjectInput",
+                                                    List(
+                                                      InputField("id", LongType),
+                                                      InputField("name", StringType)
+                                                    ))
+
+  implicit val myObjectInput = new FromInput[MyObject] {
+    override val marshaller: ResultMarshaller = CoercedScalaResultMarshaller.default
+
+    override def fromResult(node: marshaller.Node): MyObject = {
+      val m = node.asInstanceOf[Map[String, Any]]
+      MyObject(m("id").asInstanceOf[Long], m("name").asInstanceOf[String])
+    }
+  }
+
+  lazy val myMutation: ObjectType[MyObjectRepository, Unit] = {
+    val inputMyObject = Argument("myobj", myObjectInputType)
+    ObjectType.apply(
+      "MyMutation",
+      fields[MyObjectRepository, Unit](
+        Field(
+          "store",
+          arguments = inputMyObject :: Nil,
+          fieldType = myObjectType,
+          resolve = c => c.ctx.store(c arg inputMyObject)
+        )
+      )
+    )
+  }
+  lazy val schema = Schema(myQuery, Some(myMutation))
 }
