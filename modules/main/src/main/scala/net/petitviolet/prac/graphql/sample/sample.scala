@@ -103,9 +103,11 @@ private object GraphQLServer {
 private object SchemaSample {
   case class MyObject(id: Long, name: String)
   class MyObjectRepository() {
-    private var data: Seq[MyObject] = MyObject(1, "alice") :: MyObject(2, "bob") :: MyObject(
-      3,
-      "charles") :: Nil
+    private var data: Seq[MyObject] =
+      MyObject(1, "alice") ::
+        MyObject(2, "bob") ::
+        MyObject(3, "charles") ::
+        Nil
     def findAll: Seq[MyObject] = data
     def findById(id: Long): Option[MyObject] = data.find { _.id == id }
   }
