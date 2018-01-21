@@ -3,7 +3,7 @@ package net.petitviolet.prac.graphql.scheme
 import java.util.concurrent.Executors
 
 import net.petitviolet.prac.graphql.dao
-import net.petitviolet.prac.graphql.dao.{ Todos, Users }
+import net.petitviolet.prac.graphql.dao.{ Todo, User }
 import sangria.execution.deferred.{ DeferredResolver, Fetcher }
 import sangria.schema._
 import sangria.macros.derive
@@ -62,10 +62,10 @@ object TodoSchema extends MySchema {
   override def name = "todo"
 
   lazy val todoType = derive.deriveObjectType(
-    derive.Interfaces[dao.container, Todos](entityType[dao.container]),
+    derive.Interfaces[dao.container, Todo](entityType[dao.container]),
     derive.AddFields(
       Field("user", OptionType(UserSchema.userType), resolve = {
-        ctx: Context[dao.container, Todos] =>
+        ctx: Context[dao.container, Todo] =>
           DeferredValue(UserSchema.fetcher.defer(ctx.value.userId))
       })
     )
@@ -85,13 +85,13 @@ object TodoSchema extends MySchema {
     "TodoQuery",
     fields[dao.container, Unit](
       Field("all", ListType(todoType), arguments = Nil, resolve = { c =>
-        c.ctx.todosDao.findAll
+        c.ctx.todoDao.findAll
       }),
       Field(
         "search",
         ListType(todoType),
         arguments = userIdArg :: Nil,
-        resolve = c => c.ctx.todosDao.findAllByUserId(c arg userIdArg)
+        resolve = c => c.ctx.todoDao.findAllByUserId(c arg userIdArg)
       )
     )
   )
@@ -107,12 +107,12 @@ object TodoSchema extends MySchema {
             OptionType(todoType),
             arguments = idArg :: userIdArg :: titleArg :: descriptionArg :: Nil,
             resolve = { ctx =>
-              ctx.ctx.todosDao.findById(ctx arg idArg).collect {
+              ctx.ctx.todoDao.findById(ctx arg idArg).collect {
                 case todo if todo.userId == ctx.arg(userIdArg) =>
                   val title = ctx.arg(titleArg) getOrElse todo.title
                   val description = ctx.arg(descriptionArg) getOrElse todo.description
                   val updatedTodo = todo.update(title, description)
-                  ctx.ctx.todosDao.update(updatedTodo)
+                  ctx.ctx.todoDao.update(updatedTodo)
               }
             }
           )
@@ -120,10 +120,10 @@ object TodoSchema extends MySchema {
       ))
   }
 
-  lazy val fetcher: Fetcher[dao.container, Todos, Todos, String] = Fetcher.caching {
+  lazy val fetcher: Fetcher[dao.container, Todo, Todo, String] = Fetcher.caching {
     (ctx: dao.container, ids: Seq[String]) =>
       Future.apply {
-        ctx.todosDao.findAllByIds(ids)
+        ctx.todoDao.findAllByIds(ids)
       }
   }
 }
@@ -131,9 +131,9 @@ object TodoSchema extends MySchema {
 object UserSchema extends MySchema {
   override def name = "user"
 
-  lazy val userType: ObjectType[Unit, Users] = derive.deriveObjectType[Unit, Users](
+  lazy val userType: ObjectType[Unit, User] = derive.deriveObjectType[Unit, User](
     derive.ObjectTypeDescription("user type"),
-    derive.Interfaces[Unit, Users](entityType[Unit]),
+    derive.Interfaces[Unit, User](entityType[Unit]),
     derive.DocumentField("name", "name of user"),
     derive.RenameField("createdAt", "created_at"),
   )
@@ -151,7 +151,7 @@ object UserSchema extends MySchema {
         description = Some("list all users"),
         arguments = Nil,
         resolve = { c: Context[dao.container, Unit] =>
-          c.ctx.usersDao.findAll
+          c.ctx.userDao.findAll
         }
       ),
       Field(
@@ -160,7 +160,7 @@ object UserSchema extends MySchema {
         description = Some("find by id"),
         arguments = Id :: Nil,
         resolve = { c: Context[dao.container, Unit] =>
-          c.ctx.usersDao.findById(c arg Id)
+          c.ctx.userDao.findById(c arg Id)
         }
       ),
       Field(
@@ -169,16 +169,16 @@ object UserSchema extends MySchema {
         arguments = Email :: Nil,
         description = Some("find by email"),
         resolve = { c: Context[dao.container, Unit] =>
-          c.ctx.usersDao.findByEmail(c arg Email)
+          c.ctx.userDao.findByEmail(c arg Email)
         }
       )
     )
   )
 
-  lazy val fetcher: Fetcher[dao.container, Users, Users, String] = Fetcher.caching {
+  lazy val fetcher: Fetcher[dao.container, User, User, String] = Fetcher.caching {
     (ctx: dao.container, ids: Seq[String]) =>
       Future.apply {
-        ctx.usersDao.findAllByIds(ids)
+        ctx.userDao.findAllByIds(ids)
       }
   }
 

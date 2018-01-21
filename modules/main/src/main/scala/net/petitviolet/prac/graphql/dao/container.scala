@@ -1,11 +1,11 @@
 package net.petitviolet.prac.graphql.dao
 
 trait container {
-  def usersDao: UsersDao
-  def todosDao: TodosDao
+  def userDao: UserDao
+  def todoDao: TodoDao
 }
 
 object container extends container {
-  override lazy val usersDao = new UsersDao
-  override lazy val todosDao = new TodosDao
+  override lazy val userDao = new UserDao
+  override lazy val todoDao = new TodoDao
 }
