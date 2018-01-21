@@ -12,22 +12,12 @@ case class User(id: Id,
 class UserDao {
   import collection.mutable
   private def now = ZonedDateTime.now()
-  private val data: mutable.Map[Id, User] = mutable.Map(
-    "user-1" -> User(
-      "user-1",
-      "hello-user-1",
-      "hello-1@example.com",
-      now,
-      now,
-    ),
-    "user-2" -> User(
-      "user-2",
-      "hello-user-2",
-      "hello-2@example.com",
-      now,
-      now,
-    ),
-  )
+  private val data: mutable.Map[Id, User] = {
+    def _user(id: Id): (Id, User) = id -> User(id, s"${id}_name", s"$id@example.com", now, now)
+    mutable.Map(
+      _user("user-1"), _user("user-2"), _user("user-3")
+    )
+  }
 
   def findById(id: Id): Option[User] = data.get(id)
 
