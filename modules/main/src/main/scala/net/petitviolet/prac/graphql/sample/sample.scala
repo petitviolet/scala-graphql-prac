@@ -110,7 +110,6 @@ private object SchemaSample {
     private val data: mutable.Map[Long, MyObject] = mutable.LinkedHashMap(
       1L -> MyObject(1, "alice"),
       2L -> MyObject(2, "bob"),
-      3L -> MyObject(3, "charles"),
     )
 
     def findAll: Seq[MyObject] = data.values.toList
