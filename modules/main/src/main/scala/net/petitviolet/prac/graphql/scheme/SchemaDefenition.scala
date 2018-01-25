@@ -4,9 +4,9 @@ import java.util.concurrent.Executors
 
 import net.petitviolet.prac.graphql.dao
 import net.petitviolet.prac.graphql.dao.{ Todo, User }
-import sangria.execution.deferred.{ DeferredResolver, Fetcher }
-import sangria.schema._
+import sangria.execution.deferred.{ DeferredResolver, Fetcher, Relation }
 import sangria.macros.derive
+import sangria.schema._
 
 import scala.concurrent.{ ExecutionContext, Future }
 
@@ -44,12 +44,17 @@ object SchemaDefinition {
 
 sealed trait MySchema {
   def name: String
+
   def query: ObjectType[dao.container, Unit]
+
   def mutation: Option[ObjectType[dao.container, Unit]] = None
+
   def asQueryField: Field[dao.container, Unit] = Field(name, query, resolve = _ => ())
+
   def asMutationField: Option[Field[dao.container, Unit]] = mutation.map { m =>
     Field(name, m, resolve = _ => ())
   }
+
   def fetcher: Fetcher[dao.container, _, _, _]
 
   protected val threadNum: Int = 2
@@ -60,6 +65,17 @@ sealed trait MySchema {
 object TodoSchema extends MySchema {
 
   override def name = "todo"
+
+  val _: Fetcher[dao.container, Todo, User, String] = {
+    val byUser = Relation.apply[Todo, String]("byUser", { todo: Todo => todo.userId :: Nil })
+
+    Fetcher.rel[dao.container, Todo, User, String](
+      { (repo, ids) => Future.apply(repo.todoDao.findAllByIds(ids)) },
+      { (repo, ids) => Future.apply {
+        repo.userDao.findAllByIds(ids apply byUser)
+      }}
+    )
+  }
 
   lazy val todoType = derive.deriveObjectType(
     derive.Interfaces[dao.container, Todo](entityType[dao.container]),
@@ -78,6 +94,7 @@ object TodoSchema extends MySchema {
     lazy val descriptionArg =
       Argument("description", OptionInputType(StringType), "description of todo")
   }
+
   import args._
 
   override lazy val query = ObjectType(
