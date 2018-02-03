@@ -51,3 +51,9 @@ mutation UpdateTodo {
   }
 }
 ```
+
+## build
+
+```shell-session
+sbt 'project main' 'docker:publishLocal'
+```
