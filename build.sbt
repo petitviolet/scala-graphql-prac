@@ -30,5 +30,15 @@ lazy val gaphqlPrac = (project in file("."))
   .settings(commonSettings("graphqlPrac"))
 
 lazy val main = (project in file("modules/main"))
+  .enablePlugins(JavaServerAppPackaging)
   .settings(commonSettings("main"))
+  .settings(
+    packageName in Docker := "graphql-prac",
+    version in Docker := libVersion,
+    dockerRepository := Some("petitviolet"),
+    maintainer in Docker := "petitviolet <mail@petitviolet.net>",
+    dockerExposedPorts := List(8080),
+//    dockerBaseImage := "openjdk:8-jdk-alpine",
+    dockerCmd := List("bin/main")
+  )
 
