@@ -23,48 +23,51 @@ import scala.concurrent._
 import scala.concurrent.duration._
 import scala.io.StdIn
 
-object sample extends App {
-  implicit val system: ActorSystem = ActorSystem("graphql-prac")
-  implicit val materializer: ActorMaterializer = ActorMaterializer()
+object sample {
+  def hoge(args: Array[String]): Unit = {
 
-  private val executionContext =
-    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(sys.runtime.availableProcessors()))
+    implicit val system: ActorSystem = ActorSystem("graphql-prac")
+    implicit val materializer: ActorMaterializer = ActorMaterializer()
 
-  val route: Route =
-    (post & path("graphql")) {
-      entity(as[JsValue]) { jsObject =>
-        logRequestResult("/graphql", Logging.InfoLevel) {
-          complete(GraphQLServer.execute(jsObject)(executionContext))
+    val executionContext =
+      ExecutionContext.fromExecutor(Executors.newFixedThreadPool(sys.runtime.availableProcessors()))
+
+    val route: Route =
+      (post & path("graphql")) {
+        entity(as[JsValue]) { jsObject =>
+          logRequestResult("/graphql", Logging.InfoLevel) {
+            complete(GraphQLServer.execute(jsObject)(executionContext))
+          }
         }
-      }
-    } ~
-      get {
-        logRequestResult("/graphiql.html", Logging.InfoLevel) {
-          getFromResource("graphiql.html")
+      } ~
+        get {
+          logRequestResult("/graphiql.html", Logging.InfoLevel) {
+            getFromResource("graphiql.html")
+          }
         }
-      }
 
-  val host = sys.props.get("http.host") getOrElse "0.0.0.0"
-  val port = sys.props.get("http.port").fold(8080)(_.toInt)
+    val host = sys.props.get("http.host") getOrElse "0.0.0.0"
+    val port = sys.props.get("http.port").fold(8080)(_.toInt)
 
-  val f = Http().bindAndHandle(route, host, port)
+    val f = Http().bindAndHandle(route, host, port)
 
-  println(s"server at [$host:$port]")
+    println(s"server at [$host:$port]")
 
-  val _ = StdIn.readLine("\ninput something\n")
+    val _ = StdIn.readLine("\ninput something\n")
 
-  println("\nshutdown...\n")
-  val x = f.flatMap { b =>
-    b.unbind()
-      .flatMap { _ =>
-        materializer.shutdown()
-        system.terminate()
-      }(ExecutionContext.global)
-  }(ExecutionContext.global)
+    println("\nshutdown...\n")
+    val x = f.flatMap { b =>
+      b.unbind()
+        .flatMap { _ =>
+          materializer.shutdown()
+          system.terminate()
+        }(ExecutionContext.global)
+    }(ExecutionContext.global)
 
-  Await.ready(x, 5.seconds)
-  sys.runtime.gc()
-  println(s"shutdown completed!\n")
+    Await.ready(x, 5.seconds)
+    sys.runtime.gc()
+    println(s"shutdown completed!\n")
+  }
 }
 
 private object GraphQLServer {
@@ -106,18 +109,23 @@ private object GraphQLServer {
 private object SchemaSample {
   case class MyObject(id: Long, name: String)
   class MyObjectRepository {
+
     import scala.collection.mutable
+
     private val data: mutable.Map[Long, MyObject] = mutable.LinkedHashMap(
       1L -> MyObject(1, "alice"),
       2L -> MyObject(2, "bob"),
     )
 
     def findAll: Seq[MyObject] = data.values.toList
+
     def findById(id: Long): Option[MyObject] = data get id
+
     def store(obj: MyObject): MyObject = {
       data += (obj.id -> obj)
       obj
     }
+
     def create(name: String): MyObject = {
       val id = data.keys.max + 1
       store(MyObject(id, name))
