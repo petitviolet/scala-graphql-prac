@@ -3,7 +3,7 @@ package net.petitviolet.prac.graphql.scheme
 import java.util.concurrent.Executors
 
 import net.petitviolet.prac.graphql.dao
-import net.petitviolet.prac.graphql.dao.{ Todo, User }
+import net.petitviolet.prac.graphql.dao.{ Id, Todo, User }
 import sangria.execution.deferred.{ DeferredResolver, Fetcher, Relation }
 import sangria.macros.derive
 import sangria.schema._
@@ -67,21 +67,28 @@ object TodoSchema extends MySchema {
   override def name = "todo"
 
   val _: Fetcher[dao.container, Todo, User, String] = {
-    val byUser = Relation.apply[Todo, String]("byUser", { todo: Todo => todo.userId :: Nil })
+    val byUser = Relation.apply[Todo, String]("byUser", { todo: Todo =>
+      todo.userId :: Nil
+    })
 
     Fetcher.rel[dao.container, Todo, User, String](
-      { (repo, ids) => Future.apply(repo.todoDao.findAllByIds(ids)) },
-      { (repo, ids) => Future.apply {
-        repo.userDao.findAllByIds(ids apply byUser)
-      }}
+      { (repo, ids) =>
+        Future.apply(repo.todoDao.findAllByIds(ids))
+      }, { (repo, ids) =>
+        Future.apply {
+          repo.userDao.findAllByIds(ids apply byUser)
+        }
+      }
     )
   }
 
-  lazy val todoType = derive.deriveObjectType(
+  lazy val todoType: ObjectType[dao.container, Todo] = derive.deriveObjectType(
     derive.Interfaces[dao.container, Todo](entityType[dao.container]),
     derive.AddFields(
       Field("user", OptionType(UserSchema.userType), resolve = {
         ctx: Context[dao.container, Todo] =>
+          // cause N+1 problem
+          // ctx.ctx.userDao.findById(ctx.value.userId)
           DeferredValue(UserSchema.fetcher.defer(ctx.value.userId))
       })
     )
@@ -192,8 +199,8 @@ object UserSchema extends MySchema {
     )
   )
 
-  lazy val fetcher: Fetcher[dao.container, User, User, String] = Fetcher.caching {
-    (ctx: dao.container, ids: Seq[String]) =>
+  lazy val fetcher: Fetcher[dao.container, User, User, Id] = Fetcher.caching {
+    (ctx: dao.container, ids: Seq[Id]) =>
       Future.apply {
         ctx.userDao.findAllByIds(ids)
       }

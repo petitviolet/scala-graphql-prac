@@ -15,11 +15,16 @@ class UserDao {
   private val data: mutable.Map[Id, User] = {
     def _user(id: Id): (Id, User) = id -> User(id, s"${id}_name", s"$id@example.com", now, now)
     mutable.Map(
-      _user("user-1"), _user("user-2"), _user("user-3")
+      _user("user-1"),
+      _user("user-2"),
+      _user("user-3")
     )
   }
 
-  def findById(id: Id): Option[User] = data.get(id)
+  def findById(id: Id): Option[User] = {
+    println(s"UserDao#findById($id)")
+    data.get(id)
+  }
 
   def findByEmail(emailOpt: Option[String]): Option[User] = {
     emailOpt.flatMap { email =>
@@ -27,7 +32,10 @@ class UserDao {
     }
   }
 
-  def findAllByIds(ids: Seq[Id]): Seq[User] = ids collect data
+  def findAllByIds(ids: Seq[Id]): Seq[User] = {
+    println(s"UserDao#findAllById($ids)")
+    ids collect data
+  }
 
   def findAll: Seq[User] = data.values.toList
 

@@ -64,7 +64,7 @@ object GraphQLServer {
         variables = vars,
         operationName = operation,
         deferredResolver = deferredResolver,
-        middleware = middlewares,
+        middleware = middlewares
       )
       .map { jsValue =>
         OK -> jsValue
