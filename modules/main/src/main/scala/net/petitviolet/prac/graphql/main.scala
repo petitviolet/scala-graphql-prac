@@ -46,20 +46,21 @@ object main extends App {
 
   println(s"server at [$host:$port]")
 
-  val _ = StdIn.readLine("\ninput something\n")
-
-  println("\nshutdown...\n")
-  val x = f.flatMap { b =>
-    b.unbind()
-      .flatMap { _ =>
-        materializer.shutdown()
-        system.terminate()
-      }(ExecutionContext.global)
-  }(ExecutionContext.global)
-
-  Await.ready(x, 5.seconds)
-  sys.runtime.gc()
-  println(s"shutdown completed!\n")
+  Await.ready(f, Duration.Inf)
+//  val _ = StdIn.readLine("\ninput something\n")
+//
+//  println("\nshutdown...\n")
+//  val x = f.flatMap { b =>
+//    b.unbind()
+//      .flatMap { _ =>
+//        materializer.shutdown()
+//        system.terminate()
+//      }(ExecutionContext.global)
+//  }(ExecutionContext.global)
+//
+//  Await.ready(x, Duration.Inf)
+//  sys.runtime.gc()
+//  println(s"shutdown completed!\n")
 
 //  sys.exit(0)
 }
