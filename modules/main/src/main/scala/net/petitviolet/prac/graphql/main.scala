@@ -6,7 +6,7 @@ import akka.actor.{ ActorSystem, Terminated }
 import akka.event.Logging
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
-import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.model.HttpHeader
 import akka.http.scaladsl.server._
 import akka.stream.ActorMaterializer
 import spray.json._
@@ -15,7 +15,7 @@ import scala.concurrent.{ Await, ExecutionContext }
 import scala.concurrent.duration._
 import scala.io.StdIn
 
-object main extends App {
+object main extends App with Directives {
   implicit val system: ActorSystem = ActorSystem("graphql-prac")
   implicit val materializer: ActorMaterializer = ActorMaterializer()
 
@@ -23,13 +23,18 @@ object main extends App {
     ExecutionContext.fromExecutor(Executors.newFixedThreadPool(sys.runtime.availableProcessors()))
 
   val route: Route =
-    (post & path("graphql")) {
-      entity(as[JsValue]) { jsObject =>
-        logRequestResult("/graphql", Logging.InfoLevel) {
-          complete(GraphQLServer.execute(jsObject)(executionContext))
-        }
+    (get & pathPrefix("index") & extractUri & headerValueByName("User-Agent")) { (uri, ua) =>
+      logRequestResult("/index", Logging.InfoLevel) {
+        complete(s"param: ${uri.query().toMap}, user-agent: ${ua}}")
       }
     } ~
+      (post & path("graphql")) {
+        entity(as[JsValue]) { jsObject =>
+          logRequestResult("/graphql", Logging.InfoLevel) {
+            complete(GraphQLServer.execute(jsObject)(executionContext))
+          }
+        }
+      } ~
       (get & path("show")) {
         complete(GraphQLServer.showSchema)
       } ~
@@ -40,7 +45,7 @@ object main extends App {
       }
 
   val host = sys.props.get("http.host") getOrElse "0.0.0.0"
-  val port = sys.props.get("http.port").fold(8080)(_.toInt)
+  val port = sys.props.get("http.port").fold(8080) { _.toInt }
 
   val f = Http().bindAndHandle(route, host, port)
 
