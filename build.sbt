@@ -38,7 +38,7 @@ lazy val main = (project in file("modules/main"))
     dockerRepository := Some("petitviolet"),
     maintainer in Docker := "petitviolet <mail@petitviolet.net>",
     dockerExposedPorts := List(8080),
-//    dockerBaseImage := "openjdk:8-jdk-alpine",
-    dockerCmd := List("bin/main")
+    dockerBaseImage := "openjdk:latest",
+    dockerCmd := Nil
   )
 
