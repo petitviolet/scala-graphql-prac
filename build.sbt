@@ -6,6 +6,12 @@ val libVersion = "1.0"
 
 val scala = "2.12.4"
 
+val loggerDependencies = Seq(
+  "org.slf4j" % "slf4j-api" % "1.7.21",
+  "ch.qos.logback" % "logback-classic" % "1.1.7",
+  "ch.qos.logback" % "logback-core" % "1.1.7"
+)
+
 val commonDependencies = Seq(
   "org.sangria-graphql" %% "sangria" % "1.3.3",
   "org.sangria-graphql" %% "sangria-spray-json" % "1.0.0",
@@ -15,7 +21,8 @@ val commonDependencies = Seq(
   "com.lihaoyi" %% "sourcecode" % "0.1.3",
   "org.scalatest" %% "scalatest" % "3.0.4" % Test,
   "org.scalacheck" %% "scalacheck" % "1.13.4" % Test
-)
+) ++ loggerDependencies
+
 def commonSettings(_name: String) = Seq(
   scalaVersion := scala,
   version := libVersion,
