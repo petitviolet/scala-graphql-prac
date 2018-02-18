@@ -6,7 +6,7 @@ import akka.actor.ActorSystem
 import akka.event.Logging
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport._
 import akka.http.scaladsl.server._
-import akka.http.scaladsl.{ Http, server }
+import akka.http.scaladsl.{ server, Http }
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
