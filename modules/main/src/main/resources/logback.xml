@@ -16,14 +16,14 @@
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <charset>UTF-8</charset>
             <layout class="ch.qos.logback.classic.PatternLayout">
-                <Pattern>%date %-5level [%thread] [%file:%line] - %msg%n</Pattern>
+                <Pattern>application.log - %date %-5level [%thread] [%file:%line] - %msg%n</Pattern>
             </layout>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- daily rollover -->
-            <fileNamePattern>${MY_LOG_DIR}/my.log.%d{yyyy-MM-dd}</fileNamePattern>
-            <!-- keep 7 days worth of history -->
-            <maxHistory>7</maxHistory>
+            <fileNamePattern>${MY_LOG_DIR}/my.log.%d{yyyy-MM-dd-HH}</fileNamePattern>
+            <!-- keep 3 days worth of history -->
+            <maxHistory>72</maxHistory>
         </rollingPolicy>
     </appender>
 
@@ -39,14 +39,14 @@
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <charset>UTF-8</charset>
             <layout class="ch.qos.logback.classic.PatternLayout">
-                <Pattern>%date %-5level [%thread] [%file:%line] - %msg%n</Pattern>
+                <Pattern>awesome.log - %date %-5level [%thread] [%file:%line] - %msg%n</Pattern>
             </layout>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- daily rollover -->
-            <fileNamePattern>${MY_LOG_DIR}/awesome.log.%d{yyyy-MM-dd}</fileNamePattern>
-            <!-- keep 7 days worth of history -->
-            <maxHistory>7</maxHistory>
+            <fileNamePattern>${MY_LOG_DIR}/awesome.log.%d{yyyy-MM-dd-HH}</fileNamePattern>
+            <!-- keep 3 days worth of history -->
+            <maxHistory>72</maxHistory>
         </rollingPolicy>
     </appender>
 
@@ -68,6 +68,7 @@
 
     <root level="INFO">
         <appender-ref ref="APPLICATION_LOG"/>
+        <appender-ref ref="AWESOME_LOG"/>
         <appender-ref ref="STDOUT"/>
     </root>
 
