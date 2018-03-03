@@ -71,16 +71,19 @@ object main extends App with Directives {
   myLogger.info(s"server at [$host:$port]")
 
   Await.ready(f, Duration.Inf)
-  val _ = StdIn.readLine("\ninput something\n")
-  myLogger.info("\nshutdown...\n")
-  val x = f.flatMap { b =>
-    b.unbind()
-      .flatMap { _ =>
-        materializer.shutdown()
-        system.terminate()
-      }(ExecutionContext.global)
-  }(ExecutionContext.global)
 
-  Await.ready(x, Duration.Inf)
-  myLogger.info(s"shutdown completed!\n")
+  if (config.getString("my.configuration.env") == "local") {
+    val _ = StdIn.readLine("\ninput something\n")
+    myLogger.info("\nshutdown...\n")
+    val x = f.flatMap { b =>
+      b.unbind()
+        .flatMap { _ =>
+          materializer.shutdown()
+          system.terminate()
+        }(ExecutionContext.global)
+    }(ExecutionContext.global)
+
+    Await.ready(x, Duration.Inf)
+    myLogger.info(s"shutdown completed!\n")
+  }
 }
