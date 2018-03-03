@@ -6,6 +6,7 @@ import java.util.UUID
 import java.util.concurrent.atomic.{ AtomicInteger, AtomicReference }
 
 import com.redis.{ RedisClient, RedisClientPool }
+import com.typesafe.config.ConfigFactory
 import spray.json._
 
 package object dao {
@@ -40,7 +41,12 @@ package object dao {
   private val zoneId = ZoneId.of("Asia/Tokyo")
   def now(): ZonedDateTime = ZonedDateTime.now(zoneId)
 
-  private[dao] lazy val redisClients = new RedisClientPool("localhost", 6379)
+  private[dao] lazy val redisClients = {
+    val config = ConfigFactory.load()
+    val host = config.getString("my.redis.host")
+    val port = config.getInt("my.redis.port")
+    new RedisClientPool(host, port)
+  }
   private[dao] def withRedis[A](ops: (RedisClient => A)) = {
     redisClients.withClient(ops)
   }
