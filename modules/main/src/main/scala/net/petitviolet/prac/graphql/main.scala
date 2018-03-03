@@ -28,11 +28,11 @@ object main extends App with Directives {
 
   def withLogging: server.Directive0 = {
     extractRequestContext.flatMap { ctx ⇒
-      myLogger.info(s"[request]uri: ${ctx.request.uri}, header: ${ctx.request.headers}")
-      awesomeLogger.info(s"[request]uri: ${ctx.request.uri}, header: ${ctx.request.headers}")
+      myLogger.info(s"[myLogger][request]uri: ${ctx.request.uri}")
+      awesomeLogger.info(s"[awesomeLogger][request]uri: ${ctx.request.uri}")
       mapRouteResult { result ⇒
-        myLogger.info(s"[response]${result}")
-        awesomeLogger.info(s"[response]${result}")
+        myLogger.info(s"[myLogger][response]${result}")
+        awesomeLogger.info(s"[awesomeLogger][response]${result}")
         result
       }
     }
