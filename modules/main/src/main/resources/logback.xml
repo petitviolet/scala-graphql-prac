@@ -16,7 +16,7 @@
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <charset>UTF-8</charset>
             <layout class="ch.qos.logback.classic.PatternLayout">
-                <Pattern>%date %-5level [%thread] [%file:%line] - %msg%n</Pattern>
+                <Pattern>[APPLICATION]%date %-5level [%thread] [%file:%line] - %msg%n</Pattern>
             </layout>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
@@ -39,7 +39,7 @@
         <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
             <charset>UTF-8</charset>
             <layout class="ch.qos.logback.classic.PatternLayout">
-                <Pattern>%date %-5level [%thread] [%file:%line] - %msg%n</Pattern>
+                <Pattern>[AWESOME]%date %-5level [%thread] [%file:%line] - %msg%n</Pattern>
             </layout>
         </encoder>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
