@@ -19,6 +19,7 @@ val commonDependencies = Seq(
   "com.typesafe.akka" %% "akka-http" % "10.0.10",
   "com.typesafe.akka" %% "akka-http-spray-json" % "10.0.10",
   "com.lihaoyi" %% "sourcecode" % "0.1.3",
+  "net.debasishg" %% "redisclient" % "3.5",
   "org.scalatest" %% "scalatest" % "3.0.4" % Test,
   "org.scalacheck" %% "scalacheck" % "1.13.4" % Test
 ) ++ loggerDependencies

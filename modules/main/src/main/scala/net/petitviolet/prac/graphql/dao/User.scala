@@ -2,6 +2,9 @@ package net.petitviolet.prac.graphql.dao
 
 import java.time.ZonedDateTime
 
+import com.redis.serialization.Parse
+import spray.json.JsonFormat
+
 case class User(id: Id,
                 name: String,
                 email: String,
@@ -22,41 +25,21 @@ object User {
       dateTime
     )
   }
+  import spray.json._
+
+  val userJsonFormat: RootJsonFormat[User] = DefaultJsonProtocol.jsonFormat5(User.apply)
 }
 
-class UserDao {
-  import collection.mutable
-  private def now = ZonedDateTime.now()
-  private val data: mutable.Map[Id, User] = {
-    def _user(id: Id): (Id, User) = id -> User(id, s"${id}_name", s"$id@example.com", now, now)
-    mutable.Map(
-      _user("user-1"),
-      _user("user-2"),
-      _user("user-3")
-    )
-  }
+class UserDao extends RedisDao[User] {
 
-  def findById(id: Id): Option[User] = {
-    println(s"UserDao#findById($id)")
-    data.get(id)
-  }
+  override protected val prefix: String = "user"
+  override protected implicit val jsonFormat: JsonFormat[User] = User.userJsonFormat
 
   def findByEmail(email: String): Option[User] = {
-    data.values.find { _.email == email }
+    None
+//    withRedis { client =>
+//      client.get[User](s"user:$email")
+//    }
   }
 
-  def findAllByIds(ids: Seq[Id]): Seq[User] = {
-    println(s"UserDao#findAllById($ids)")
-    ids collect data
-  }
-
-  def findAll: Seq[User] = data.values.toList
-
-  def create(users: User): Unit = data += (users.id -> users)
-
-  def update(users: User): Unit =
-    data.update(
-      users.id,
-      users
-    )
 }
