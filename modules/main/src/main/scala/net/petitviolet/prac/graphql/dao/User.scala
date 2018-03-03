@@ -9,6 +9,21 @@ case class User(id: Id,
                 updatedAt: ZonedDateTime)
     extends Entity
 
+object User {
+  def create(name: String, email: String): User = {
+    require(name.nonEmpty && email.nonEmpty, "name and email must not empty.")
+
+    val dateTime = now()
+    apply(
+      generateId,
+      name,
+      email,
+      dateTime,
+      dateTime
+    )
+  }
+}
+
 class UserDao {
   import collection.mutable
   private def now = ZonedDateTime.now()
@@ -26,10 +41,8 @@ class UserDao {
     data.get(id)
   }
 
-  def findByEmail(emailOpt: Option[String]): Option[User] = {
-    emailOpt.flatMap { email =>
-      data.values.find { _.email == email }
-    }
+  def findByEmail(email: String): Option[User] = {
+    data.values.find { _.email == email }
   }
 
   def findAllByIds(ids: Seq[Id]): Seq[User] = {

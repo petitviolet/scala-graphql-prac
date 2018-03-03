@@ -162,8 +162,11 @@ object UserSchema extends MySchema {
     derive.RenameField("createdAt", "created_at"),
   )
 
-  lazy val Id = Argument("id", StringType, "id of user")
-  lazy val Email = Argument("email", OptionInputType(StringType), "email of user")
+  private object args {
+    lazy val id = Argument("id", StringType, "id of user")
+    lazy val email = Argument("email", StringType, "email of user")
+    lazy val name = Argument("name", StringType, "name of todo")
+  }
 
   lazy val query: ObjectType[dao.container, Unit] = ObjectType(
     "UserQuery",
@@ -182,22 +185,46 @@ object UserSchema extends MySchema {
         "by_id",
         OptionType(userType),
         description = Some("find by id"),
-        arguments = Id :: Nil,
+        arguments = args.id :: Nil,
         resolve = { c: Context[dao.container, Unit] =>
-          c.ctx.userDao.findById(c arg Id)
+          c.ctx.userDao.findById(c arg args.id)
         }
       ),
       Field(
         "by_email",
         OptionType(userType),
-        arguments = Email :: Nil,
+        arguments = args.email :: Nil,
         description = Some("find by email"),
         resolve = { c: Context[dao.container, Unit] =>
-          c.ctx.userDao.findByEmail(c arg Email)
+          c.ctx.userDao.findByEmail(c arg args.email)
         }
       )
     )
   )
+
+  override lazy val mutation = {
+    Some(
+      ObjectType(
+        "UserMutation",
+        "UserMutation",
+        fields[dao.container, Unit](
+          Field(
+            "create",
+            userType,
+            arguments = args.name :: args.email :: Nil,
+            resolve = { ctx =>
+              val user = {
+                val name = ctx arg args.name
+                val email = ctx arg args.email
+                User.create(name, email)
+              }
+              ctx.ctx.userDao.create(user)
+              user
+            }
+          )
+        )
+      ))
+  }
 
   lazy val fetcher: Fetcher[dao.container, User, User, Id] = Fetcher.caching {
     (ctx: dao.container, ids: Seq[Id]) =>
