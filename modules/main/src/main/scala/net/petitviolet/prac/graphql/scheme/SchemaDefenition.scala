@@ -95,14 +95,15 @@ object TodoSchema extends MySchema {
   )
 
   private object args {
-    lazy val idArg = Argument("id", StringType, "id of todo")
-    lazy val userIdArg = Argument("user_id", StringType, "id of user")
-    lazy val titleArg = Argument("title", OptionInputType(StringType), "title of todo")
-    lazy val descriptionArg =
-      Argument("description", OptionInputType(StringType), "description of todo")
-  }
+    val id = Argument("id", StringType, "id of todo")
+    val userId = Argument("user_id", StringType, "id of user")
+    val titleOpt = Argument("title", OptionInputType(StringType), "title of todo")
+    val descriptionOpt = Argument("description", OptionInputType(StringType), "description of todo")
 
-  import args._
+    val title = Argument("title", StringType, "title of todo")
+    val description = Argument("description", StringType, "description of todo")
+    val deadlineArg = Argument("deadline", StringType, "deadline of todo")
+  }
 
   override lazy val query = ObjectType(
     "TodoQuery",
@@ -114,8 +115,8 @@ object TodoSchema extends MySchema {
       Field(
         "search",
         ListType(todoType),
-        arguments = userIdArg :: Nil,
-        resolve = c => c.ctx.todoDao.findAllByUserId(c arg userIdArg)
+        arguments = args.userId :: Nil,
+        resolve = c => c.ctx.todoDao.findAllByUserId(c arg args.userId)
       )
     )
   )
@@ -127,16 +128,31 @@ object TodoSchema extends MySchema {
         "TodoMutation",
         fields[dao.container, Unit](
           Field(
+            "create",
+            todoType,
+            arguments = args.userId :: args.title :: args.description :: Nil,
+            resolve = { ctx =>
+              val todo = Todo.create(
+                ctx arg args.userId,
+                ctx arg args.title,
+                ctx arg args.description
+              )
+              ctx.ctx.todoDao.create(todo)
+              todo
+            }
+          ),
+          Field(
             "update",
             OptionType(todoType),
-            arguments = idArg :: userIdArg :: titleArg :: descriptionArg :: Nil,
+            arguments = args.id :: args.userId :: args.titleOpt :: args.descriptionOpt :: Nil,
             resolve = { ctx =>
-              ctx.ctx.todoDao.findById(ctx arg idArg).collect {
-                case todo if todo.userId == ctx.arg(userIdArg) =>
-                  val title = ctx.arg(titleArg) getOrElse todo.title
-                  val description = ctx.arg(descriptionArg) getOrElse todo.description
+              ctx.ctx.todoDao.findById(ctx arg args.id).collect {
+                case todo if todo.userId == ctx.arg(args.userId) =>
+                  val title = ctx.arg(args.titleOpt) getOrElse todo.title
+                  val description = ctx.arg(args.descriptionOpt) getOrElse todo.description
                   val updatedTodo = todo.update(title, description)
                   ctx.ctx.todoDao.update(updatedTodo)
+                  updatedTodo
               }
             }
           )
