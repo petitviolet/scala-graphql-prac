@@ -71,18 +71,16 @@ object main extends App with Directives {
   myLogger.info(s"server at [$host:$port]")
 
   Await.ready(f, Duration.Inf)
-  sys.addShutdownHook {
-    myLogger.info("\nshutdown...\n")
-    val x = f.flatMap { b =>
-      b.unbind()
-        .flatMap { _ =>
-          materializer.shutdown()
-          system.terminate()
-        }(ExecutionContext.global)
-    }(ExecutionContext.global)
-
-    Await.ready(x, Duration.Inf)
-    myLogger.info(s"shutdown completed!\n")
-  }
   val _ = StdIn.readLine("\ninput something\n")
+  myLogger.info("\nshutdown...\n")
+  val x = f.flatMap { b =>
+    b.unbind()
+      .flatMap { _ =>
+        materializer.shutdown()
+        system.terminate()
+      }(ExecutionContext.global)
+  }(ExecutionContext.global)
+
+  Await.ready(x, Duration.Inf)
+  myLogger.info(s"shutdown completed!\n")
 }
