@@ -1,0 +1,121 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: nginx
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 80
+          name: nginx
+        volumeMounts:
+        - mountPath: /etc/nginx/nginx.conf
+          name: nginx-conf
+        - mountPath: /etc/nginx/virtualhost
+          name: nginx-virtualhost-conf
+      volumes:
+      - name: nginx-conf
+        hostPath:
+          path: /Users/petitviolet/Code/github/azure_aks_prac/conf/nginx/nginx.conf
+          type: File
+      - name: nginx-virtualhost-conf
+        hostPath:
+          path: /Users/petitviolet/Code/github/azure_aks_prac/conf/nginx/virtualhost
+          type: Directory
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: nginx
+
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: redis
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis
+        ports:
+        - containerPort: 6379
+          name: redis
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  ports:
+  - port: 6379
+  selector:
+    app: redis
+
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: app
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+      - name: app
+        image: petitviolet/graphql-prac:1.0
+        ports:
+        - containerPort: 8080
+        env:
+        - name: MY_LOG_DIR
+          value: "/var/log/kaku"
+        - name: REDIS_HOST
+          value: redis
+        - name: REDIS_PORT
+          value: "6379"
+        - name: GRAPHQL_SAMPLE_ENV
+          value: azure
+        volumeMounts:
+        - mountPath: /var/log/kaku
+          name: log
+      volumes:
+      - name: log
+        emptyDir: {}
+      imagePullSecrets:
+        - name: registry
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: app
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 80
+  selector:
+    app: app
