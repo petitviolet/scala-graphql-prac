@@ -46,7 +46,7 @@ spec:
         - containerPort: 8080
         env:
         - name: MY_LOG_DIR
-          value: "/var/log/kaku"
+          value: "/var/log/app"
         - name: REDIS_HOST
           value: redis
         - name: REDIS_PORT
@@ -54,7 +54,7 @@ spec:
         - name: GRAPHQL_SAMPLE_ENV
           value: azure
         volumeMounts:
-        - mountPath: /var/log/kaku
+        - mountPath: /var/log/app
           name: log
       - name: nginx
         image: nginx
