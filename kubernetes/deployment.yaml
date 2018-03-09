@@ -61,26 +61,17 @@ spec:
         ports:
         - containerPort: 80
         volumeMounts:
-        - mountPath: /etc/nginx/nginx.conf
+        - mountPath: /etc/nginx
+          readOnly: true
           name: nginx-conf
-        - mountPath: /etc/nginx/virtualhost
-          name: nginx-virtualhost-conf
         - mountPath: /var/log/nginx
           name: log
       volumes:
       - name: nginx-conf
-        hostPath:
-          path: /Users/petitviolet/Code/github/scala-graphql-prac/conf/nginx/nginx.conf
-          type: File
-      - name: nginx-virtualhost-conf
-        hostPath:
-          path: /Users/petitviolet/Code/github/scala-graphql-prac/conf/nginx/virtualhost
-          type: Directory
+        configMap:
+          name: nginx-conf
       - name: log
         emptyDir: {}
-        # hostPath:
-        #   path: /var/tmp/log/docker
-        #   type: DirectoryOrCreate
       imagePullSecrets:
         - name: registry
 
@@ -96,3 +87,89 @@ spec:
     targetPort: 80
   selector:
     app: app
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-conf
+data:
+  nginx.conf: |
+    user nginx;
+    worker_processes  3;
+
+    error_log  /var/log/nginx/error.log;
+
+    events {
+      worker_connections  10240;
+    }
+
+    http {
+
+      log_format  main
+              'remote_addr:$remote_addr\t'
+              'time_local:$time_local\t'
+              'method:$request_method\t'
+              'uri:$request_uri\t'
+              'host:$host\t'
+              'https:$https\t'
+              'status:$status\t'
+              'bytes_sent:$body_bytes_sent\t'
+              'referer:$http_referer\t'
+              'useragent:$http_user_agent\t'
+              'forwardedfor:$http_x_forwarded_for\t'
+              'request_time:$request_time';
+
+      access_log	/var/log/nginx/access.log main;
+
+
+      ### set HTTP header
+      proxy_set_header Host $http_host;
+      proxy_set_header X-Remote-Addr $remote_addr;
+      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+      proxy_set_header X-Real-IP $remote_addr;
+      proxy_set_header X-Forwarded-Proto $scheme;
+      proxy_set_header Connection Close;
+
+
+      #############################################
+      # server common setting
+      ############################################
+      server {
+          listen       80;
+          server_name  _;
+
+          location / {
+              root   html;
+              index  index.html index.htm;
+          }
+
+          error_page  404              /404.html;
+          error_page   500 502 503 504  /50x.html;
+          location = /50x.html {
+              root   html;
+          }
+      }
+      include /etc/nginx/virtualhost.conf;
+    }
+  virtualhost.conf: |
+    upstream app {
+      server localhost:8080;
+      keepalive 1024;
+    }
+
+    server {
+      listen 80 default_server;
+      server_name _;
+      root /usr/local/app;
+
+      access_log /var/log/nginx/app.access_log main;
+      error_log /var/log/nginx/app.error_log;
+
+      location / {
+        proxy_pass http://app/;
+        proxy_http_version 1.1;
+      }
+    }
+
+
