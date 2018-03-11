@@ -144,7 +144,6 @@ data:
 
     server {
       listen 80 default_server;
-      server_name _;
       root /usr/local/app;
 
       access_log /var/log/nginx/app.access_log main;
