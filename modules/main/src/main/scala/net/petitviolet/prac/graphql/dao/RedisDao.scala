@@ -1,11 +1,18 @@
 package net.petitviolet.prac.graphql.dao
 
 import com.redis.serialization.Parse
+import org.slf4j.LoggerFactory
 import spray.json.JsonFormat
 
 trait RedisDao[A <: Entity] {
   protected val prefix: String
   protected implicit def jsonFormat: JsonFormat[A]
+  protected val logger = LoggerFactory.getLogger(this.getClass)
+  private def withLogging[T](msg: String)(t: => T): T = {
+    val result = t
+    logger.info(s"[$prefix]$msg => $result")
+    result
+  }
 
   protected implicit val idParse: Parse[Id] = {
     Parse[Id] { bytes =>
@@ -23,14 +30,18 @@ trait RedisDao[A <: Entity] {
 
   def findById(id: Id): Option[A] = {
     withRedis { client =>
-      client.get[A](s"$prefix:$id")
+      withLogging(s"findById($id)") {
+        client.get[A](s"$prefix:$id")
+      }
     }
   }
 
   def findAllByIds(ids: Seq[Id]): Seq[A] = {
     withRedis { client =>
       ids.flatMap { id =>
-        client.get[A](s"$prefix:$id")
+        withLogging(s"findAllByIds: ${ids.mkString(", ")}") {
+          client.get[A](s"$prefix:$id")
+        }
       }
     }
   }
@@ -41,14 +52,18 @@ trait RedisDao[A <: Entity] {
         val keys: Seq[Id] = keyOpts.collect {
           case Some(idWithPrefix) => idWithPrefix.dropWhile { _ != ':' }.tail
         }
-        findAllByIds(keys)
+        withLogging(s"findAll") {
+          findAllByIds(keys)
+        }
       }
     }
   }
 
   def create(entity: A): Unit = {
     withRedis { client =>
-      client.set(s"$prefix:${entity.id}", jsonFormat.write(entity))
+      withLogging(s"create: $entity") {
+        client.set(s"$prefix:${entity.id}", jsonFormat.write(entity))
+      }
     }
   }
 
