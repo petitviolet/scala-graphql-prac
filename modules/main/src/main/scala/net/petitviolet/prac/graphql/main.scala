@@ -57,6 +57,11 @@ object main extends App with Directives {
       (get & path("show")) {
         complete(GraphQLServer.showSchema)
       } ~
+      (get & path("health")) {
+        withLogging {
+          complete("OK")
+        }
+      } ~
       get {
         logRequestResult("/graphiql.html", Logging.InfoLevel) {
           getFromResource("graphiql.html")
