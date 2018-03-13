@@ -38,13 +38,32 @@ spec:
     metadata:
       labels:
         app: app
-        color: blue
+        color: green
     spec:
       containers:
       - name: app
         image: petitviolet/graphql-prac:1.0
         ports:
         - containerPort: 8080
+          name: api-port
+        livenessProbe:
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          httpGet:
+            path: /health
+            port: api-port
+            httpHeaders:
+            - name: X-K8S-Header
+              value: liveness
+        readinessProbe:
+          initialDelaySeconds: 5
+          periodSeconds: 20
+          httpGet:
+            path: /health
+            port: api-port
+            httpHeaders:
+            - name: X-K8S-Header
+              value: readiness
         resources:
           limits:
             cpu: 2

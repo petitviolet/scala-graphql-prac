@@ -58,8 +58,10 @@ object main extends App with Directives {
         complete(GraphQLServer.showSchema)
       } ~
       (get & path("health")) {
-        withLogging {
-          complete("OK")
+        optionalHeaderValueByName("X-K8S-Header") { k8sHeaderOpt =>
+          val msg = s"Health Check OK: ${k8sHeaderOpt}"
+          myLogger.info(msg)
+          complete(msg)
         }
       } ~
       get {
