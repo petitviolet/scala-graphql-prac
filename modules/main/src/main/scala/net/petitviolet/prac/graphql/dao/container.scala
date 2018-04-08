@@ -1,6 +1,6 @@
 package net.petitviolet.prac.graphql.dao
 
-trait container {
+sealed trait container {
   def userDao: UserDao
   def todoDao: TodoDao
 }

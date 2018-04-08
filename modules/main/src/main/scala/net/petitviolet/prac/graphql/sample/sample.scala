@@ -108,6 +108,7 @@ private object GraphQLServer {
 
 private object SchemaSample {
   case class MyObject(id: Long, name: String)
+
   class MyObjectRepository {
 
     import scala.collection.mutable
