@@ -181,6 +181,7 @@ object UserSchema extends MySchema {
   private object args {
     lazy val id = Argument("id", StringType, "id of user")
     lazy val email = Argument("email", StringType, "email of user")
+    lazy val password = Argument("password", StringType, "password of user")
     lazy val name = Argument("name", StringType, "name of todo")
   }
 
@@ -227,12 +228,13 @@ object UserSchema extends MySchema {
           Field(
             "create",
             userType,
-            arguments = args.name :: args.email :: Nil,
+            arguments = args.name :: args.email :: args.password :: Nil,
             resolve = { ctx =>
               val user = {
                 val name = ctx arg args.name
                 val email = ctx arg args.email
-                User.create(name, email)
+                val password = ctx arg args.password
+                User.create(name, email, password)
               }
               ctx.ctx.userDao.create(user)
               user

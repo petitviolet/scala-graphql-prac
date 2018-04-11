@@ -17,23 +17,29 @@ case class User(id: Id,
 
 object User {
   private val digest = MessageDigest.getInstance("SHA-256")
-  private def hash(str: String): String = {
-    digest.digest(str.getBytes).map { b => "%02x".format(b) }.mkString
+  private def hash(id: Id, str: String): String = {
+    digest
+      .digest((id + str).getBytes)
+      .map { b =>
+        "%02x".format(b)
+      }
+      .mkString
   }
 
   def login(user: User, password: String): Boolean = {
-    hash(password) == user.hashedPassword
+    hash(user.id, password) == user.hashedPassword
   }
 
   def create(name: String, email: String, password: String): User = {
+    val id = generateId
     require(name.nonEmpty && email.nonEmpty, "name and email must not empty.")
 
     val dateTime = now()
     apply(
-      generateId,
+      id,
       name,
       email,
-      hash(password),
+      hash(id, password),
       dateTime,
       dateTime
     )
@@ -43,7 +49,8 @@ object User {
   val userJsonFormat: RootJsonFormat[User] = DefaultJsonProtocol.jsonFormat6(User.apply)
 }
 
-case class AuthorizationException(email: String) extends RuntimeException(s"failed to login. email = $email")
+case class AuthorizationException(email: String)
+    extends RuntimeException(s"failed to login. email = $email")
 
 class UserDao extends RedisDao[User] {
 
