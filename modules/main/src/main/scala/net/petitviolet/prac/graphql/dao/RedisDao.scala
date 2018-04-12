@@ -31,7 +31,7 @@ trait RedisDao[A <: Entity] {
   def findById(id: Id): Option[A] = {
     withRedis { client =>
       withLogging(s"findById($id)") {
-        client.get[A](s"$prefix:$id")
+        client.get[A](s"$prefix:id:$id")
       }
     }
   }
@@ -40,7 +40,7 @@ trait RedisDao[A <: Entity] {
     withRedis { client =>
       ids.flatMap { id =>
         withLogging(s"findAllByIds: ${ids.mkString(", ")}") {
-          client.get[A](s"$prefix:$id")
+          client.get[A](s"$prefix:id:$id")
         }
       }
     }
@@ -48,9 +48,11 @@ trait RedisDao[A <: Entity] {
 
   def findAll: Seq[A] = {
     withRedis { client =>
-      client.keys[Id](s"$prefix:*").fold(Seq.empty[A]) { keyOpts: Seq[Option[Id]] =>
+      client.keys[Id](s"$prefix:id:*").fold(Seq.empty[A]) { keyOpts: Seq[Option[String]] =>
         val keys: Seq[Id] = keyOpts.collect {
-          case Some(idWithPrefix) => idWithPrefix.dropWhile { _ != ':' }.tail
+          case Some(idWithPrefix) =>
+            val Array(_, id) = idWithPrefix.split(":id:")
+            id
         }
         withLogging(s"findAll") {
           findAllByIds(keys)
@@ -62,7 +64,7 @@ trait RedisDao[A <: Entity] {
   def create(entity: A): Unit = {
     withRedis { client =>
       withLogging(s"create: $entity") {
-        client.set(s"$prefix:${entity.id}", jsonFormat.write(entity))
+        client.set(s"$prefix:id:${entity.id}", jsonFormat.write(entity))
       }
     }
   }
