@@ -2,8 +2,9 @@ package net.petitviolet.prac.graphql.scheme
 
 import java.util.concurrent.Executors
 
+import net.petitviolet.operator.toPipe
 import net.petitviolet.prac.graphql.dao
-import net.petitviolet.prac.graphql.dao.{ Id, Todo, User }
+import net.petitviolet.prac.graphql.dao.{ AuthnException, Id, Todo, User }
 import sangria.execution.deferred.{ DeferredResolver, Fetcher, Relation }
 import sangria.macros.derive
 import sangria.schema._
@@ -238,6 +239,32 @@ object UserSchema extends MySchema {
               }
               ctx.ctx.userDao.create(user)
               user
+            }
+          ),
+          Field(
+            "login",
+            StringType,
+            arguments = args.email :: args.password :: Nil,
+            resolve = { ctx =>
+              val (email, password) = (ctx arg args.email, ctx arg args.password)
+              UpdateCtx(ctx.ctx.userDao.login(email, password)) { token: String =>
+                ctx.ctx.loggedIn(token)
+              }
+            }
+          ),
+          Field(
+            "update",
+            OptionType(userType),
+            arguments = args.id :: args.name :: Nil,
+            resolve = { ctx =>
+              if (ctx.ctx.isLoggedIn) throw AuthnException("you are not logged in.")
+              else {
+                ctx.ctx.userDao.findById(ctx arg args.id).map { user =>
+                  user.updateName(ctx arg args.name) <| {
+                    ctx.ctx.userDao.update
+                  }
+                }
+              }
             }
           )
         )
