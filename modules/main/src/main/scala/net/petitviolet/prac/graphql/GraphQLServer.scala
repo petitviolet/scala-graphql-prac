@@ -39,7 +39,7 @@ object GraphQLServer {
         queryDocument,
         vars,
         operation,
-        dao.container,
+        dao.container(),
         SchemaDefinition.resolver,
         Middlewares.logging :: Nil,
       )

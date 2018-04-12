@@ -1,11 +1,18 @@
 package net.petitviolet.prac.graphql.dao
 
-sealed trait container {
-  def userDao: UserDao
-  def todoDao: TodoDao
+abstract case class container private (userDao: UserDao,
+                                       todoDao: TodoDao,
+                                       tokenOpt: Option[String]) {
+  def loggedIn(token: String): container = tokenOpt.fold(this) { _ =>
+    container.apply(token)
+  }
+  def isLoggedIn: Boolean = tokenOpt.isDefined
 }
 
-object container extends container {
-  override lazy val userDao = new UserDao
-  override lazy val todoDao = new TodoDao
+object container {
+  private lazy val userDao = new UserDao
+  private lazy val todoDao = new TodoDao
+
+  def apply(): container = new container(userDao, todoDao, None) {}
+  def apply(token: String): container = new container(userDao, todoDao, Some(token)) {}
 }
