@@ -8,7 +8,7 @@ trait RedisDao[A <: Entity] {
   protected val prefix: String
   protected implicit def jsonFormat: JsonFormat[A]
   protected val logger = LoggerFactory.getLogger(this.getClass)
-  private def withLogging[T](msg: String)(t: => T): T = {
+  protected def withLogging[T](msg: String)(t: => T): T = {
     val result = t
     logger.info(s"[$prefix]$msg => $result")
     result
