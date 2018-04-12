@@ -3,9 +3,11 @@ package net.petitviolet.prac.graphql.dao
 abstract case class container private (userDao: UserDao,
                                        todoDao: TodoDao,
                                        tokenOpt: Option[String]) {
+
   def loggedIn(token: String): container = tokenOpt.fold(this) { _ =>
     container.apply(token)
   }
+
   def isLoggedIn: Boolean = tokenOpt.isDefined
 }
 
