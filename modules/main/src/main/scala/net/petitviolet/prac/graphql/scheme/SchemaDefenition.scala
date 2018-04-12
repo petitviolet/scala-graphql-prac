@@ -44,6 +44,8 @@ object SchemaDefinition {
 }
 
 sealed trait MySchema {
+  protected def log(msg: => String): Unit = println(s"[$name]$msg")
+
   def name: String
 
   def query: ObjectType[dao.container, Unit]
@@ -248,6 +250,7 @@ object UserSchema extends MySchema {
             resolve = { ctx =>
               val (email, password) = (ctx arg args.email, ctx arg args.password)
               UpdateCtx(ctx.ctx.userDao.login(email, password)) { token: String =>
+                log(s"logged in. email = $email, token = $token")
                 ctx.ctx.loggedIn(token)
               }
             }
@@ -257,7 +260,8 @@ object UserSchema extends MySchema {
             OptionType(userType),
             arguments = args.id :: args.name :: Nil,
             resolve = { ctx =>
-              if (ctx.ctx.isLoggedIn) throw AuthnException("you are not logged in.")
+              println(s"update. ctx = ${ctx.ctx}")
+              if (!ctx.ctx.isLoggedIn) throw AuthnException("you are not logged in.")
               else {
                 ctx.ctx.userDao.findById(ctx arg args.id).map { user =>
                   user.updateName(ctx arg args.name) <| {
