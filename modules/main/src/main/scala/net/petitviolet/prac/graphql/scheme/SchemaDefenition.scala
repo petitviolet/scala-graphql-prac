@@ -3,7 +3,7 @@ package net.petitviolet.prac.graphql.scheme
 import java.util.concurrent.Executors
 
 import net.petitviolet.operator.toPipe
-import net.petitviolet.prac.graphql.dao
+import net.petitviolet.prac.graphql.GraphQLContext
 import net.petitviolet.prac.graphql.dao.{ AuthnException, Id, Todo, User }
 import sangria.execution.FieldTag
 import sangria.execution.deferred.{ DeferredResolver, Fetcher, Relation }
@@ -20,26 +20,26 @@ object SchemaDefinition {
     TodoSchema,
   )
 
-  lazy val queryType: ObjectType[dao.container, Unit] = ObjectType.apply(
+  lazy val queryType: ObjectType[GraphQLContext, Unit] = ObjectType.apply(
     "Query",
-    fields[dao.container, Unit](
+    fields[GraphQLContext, Unit](
       schemas.map { _.asQueryField }: _*
     )
   )
-  lazy val mutationType: Option[ObjectType[dao.container, Unit]] = {
+  lazy val mutationType: Option[ObjectType[GraphQLContext, Unit]] = {
     val mutationFields = schemas.flatMap { _.asMutationField }
     if (mutationFields.isEmpty) None
     else
       Option.apply {
         ObjectType.apply(
           "Mutation",
-          fields[dao.container, Unit](
+          fields[GraphQLContext, Unit](
             mutationFields: _*
           )
         )
       }
   }
-  lazy val resolver: DeferredResolver[dao.container] = DeferredResolver.fetchers(
+  lazy val resolver: DeferredResolver[GraphQLContext] = DeferredResolver.fetchers(
     schemas.map { _.fetcher }: _*
   )
 
@@ -51,17 +51,17 @@ sealed trait MySchema {
 
   def name: String
 
-  def query: ObjectType[dao.container, Unit]
+  def query: ObjectType[GraphQLContext, Unit]
 
-  def mutation: Option[ObjectType[dao.container, Unit]] = None
+  def mutation: Option[ObjectType[GraphQLContext, Unit]] = None
 
-  def asQueryField: Field[dao.container, Unit] = Field(name, query, resolve = _ => ())
+  def asQueryField: Field[GraphQLContext, Unit] = Field(name, query, resolve = _ => ())
 
-  def asMutationField: Option[Field[dao.container, Unit]] = mutation.map { m =>
+  def asMutationField: Option[Field[GraphQLContext, Unit]] = mutation.map { m =>
     Field(name, m, resolve = _ => ())
   }
 
-  def fetcher: Fetcher[dao.container, _, _, _]
+  def fetcher: Fetcher[GraphQLContext, _, _, _]
 
   protected val threadNum: Int = 2
   protected implicit val ec: ExecutionContext =
@@ -72,12 +72,12 @@ object TodoSchema extends MySchema {
 
   override def name = "todo"
 
-  val _: Fetcher[dao.container, Todo, User, String] = {
+  val _: Fetcher[GraphQLContext, Todo, User, String] = {
     val byUser = Relation.apply[Todo, String]("byUser", { todo: Todo =>
       todo.userId :: Nil
     })
 
-    Fetcher.rel[dao.container, Todo, User, String](
+    Fetcher.rel[GraphQLContext, Todo, User, String](
       { (repo, ids) =>
         Future.apply(repo.todoDao.findAllByIds(ids))
       }, { (repo, ids) =>
@@ -88,11 +88,11 @@ object TodoSchema extends MySchema {
     )
   }
 
-  lazy val todoType: ObjectType[dao.container, Todo] = derive.deriveObjectType(
-    derive.Interfaces[dao.container, Todo](entityType[dao.container]),
+  lazy val todoType: ObjectType[GraphQLContext, Todo] = derive.deriveObjectType(
+    derive.Interfaces[GraphQLContext, Todo](entityType[GraphQLContext]),
     derive.AddFields(
       Field("user", OptionType(UserSchema.userType), resolve = {
-        ctx: Context[dao.container, Todo] =>
+        ctx: Context[GraphQLContext, Todo] =>
           // cause N+1 problem
           // ctx.ctx.userDao.findById(ctx.value.userId)
           DeferredValue(UserSchema.fetcher.defer(ctx.value.userId))
@@ -114,7 +114,7 @@ object TodoSchema extends MySchema {
   override lazy val query = ObjectType(
     "TodoQuery",
     "TodoQuery",
-    fields[dao.container, Unit](
+    fields[GraphQLContext, Unit](
       Field("all", ListType(todoType), arguments = Nil, resolve = { c =>
         c.ctx.todoDao.findAll
       }),
@@ -132,7 +132,7 @@ object TodoSchema extends MySchema {
       ObjectType(
         "TodoMutation",
         "TodoMutation",
-        fields[dao.container, Unit](
+        fields[GraphQLContext, Unit](
           Field(
             "create",
             todoType,
@@ -166,8 +166,8 @@ object TodoSchema extends MySchema {
       ))
   }
 
-  lazy val fetcher: Fetcher[dao.container, Todo, Todo, String] = Fetcher.caching {
-    (ctx: dao.container, ids: Seq[String]) =>
+  lazy val fetcher: Fetcher[GraphQLContext, Todo, Todo, String] = Fetcher.caching {
+    (ctx: GraphQLContext, ids: Seq[String]) =>
       Future.apply {
         ctx.todoDao.findAllByIds(ids)
       }
@@ -191,16 +191,16 @@ object UserSchema extends MySchema {
     lazy val name = Argument("name", StringType, "name of todo")
   }
 
-  lazy val query: ObjectType[dao.container, Unit] = ObjectType(
+  lazy val query: ObjectType[GraphQLContext, Unit] = ObjectType(
     "UserQuery",
     "user query(all/by_id/by_email)",
-    fields[dao.container, Unit](
+    fields[GraphQLContext, Unit](
       Field(
         "all",
         ListType(userType),
         description = Some("list all users"),
         arguments = Nil,
-        resolve = { c: Context[dao.container, Unit] =>
+        resolve = { c: Context[GraphQLContext, Unit] =>
           c.ctx.userDao.findAll
         }
       ),
@@ -209,7 +209,7 @@ object UserSchema extends MySchema {
         OptionType(userType),
         description = Some("find by id"),
         arguments = args.id :: Nil,
-        resolve = { c: Context[dao.container, Unit] =>
+        resolve = { c: Context[GraphQLContext, Unit] =>
           c.ctx.userDao.findById(c arg args.id)
         }
       ),
@@ -218,7 +218,7 @@ object UserSchema extends MySchema {
         OptionType(userType),
         arguments = args.email :: Nil,
         description = Some("find by email"),
-        resolve = { c: Context[dao.container, Unit] =>
+        resolve = { c: Context[GraphQLContext, Unit] =>
           c.ctx.userDao.findByEmail(c arg args.email)
         }
       )
@@ -230,7 +230,7 @@ object UserSchema extends MySchema {
       ObjectType(
         "UserMutation",
         "UserMutation",
-        fields[dao.container, Unit](
+        fields[GraphQLContext, Unit](
           Field(
             "create",
             userType,
@@ -252,7 +252,7 @@ object UserSchema extends MySchema {
             arguments = args.email :: args.password :: Nil,
             resolve = { ctx =>
               val (email, password) = (ctx arg args.email, ctx arg args.password)
-              UpdateCtx(ctx.ctx.userDao.login(email, password)) { token: String =>
+              UpdateCtx(ctx.ctx.userDao.login(email, password)) { token =>
                 val newCtx = ctx.ctx.loggedIn(token)
                 log(s"logged in. email = $email, token = $token, newCtx = ${newCtx}")
                 newCtx
@@ -280,8 +280,8 @@ object UserSchema extends MySchema {
       ))
   }
 
-  lazy val fetcher: Fetcher[dao.container, User, User, Id] = Fetcher.caching {
-    (ctx: dao.container, ids: Seq[Id]) =>
+  lazy val fetcher: Fetcher[GraphQLContext, User, User, Id] = Fetcher.caching {
+    (ctx: GraphQLContext, ids: Seq[Id]) =>
       Future.apply {
         ctx.userDao.findAllByIds(ids)
       }

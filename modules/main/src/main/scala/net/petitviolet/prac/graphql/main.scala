@@ -49,8 +49,10 @@ object main extends App with Directives {
       } ~
       (post & path("graphql")) {
         entity(as[JsValue]) { jsObject =>
+          optionalHeaderValueByName("X-Token") { tokenOpt =>
 //          logRequestResult("/graphql", Logging.InfoLevel) {
-          complete(GraphQLServer.execute(jsObject)(executionContext))
+            complete(GraphQLServer.execute(jsObject, tokenOpt)(executionContext))
+          }
 //          }
         }
       } ~

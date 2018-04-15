@@ -119,4 +119,14 @@ class UserDao extends RedisDao[User] {
     }
   }
 
+  def findByToken(token: String): Option[User] = {
+    withRedis { client =>
+      withLogging(s"findByToken($token)") {
+        client
+          .get[Id](s"$prefix:token:$token")
+          .flatMap { findById }
+      }
+    }
+  }
+
 }

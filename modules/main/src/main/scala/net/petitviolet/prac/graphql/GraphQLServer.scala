@@ -1,7 +1,7 @@
 package net.petitviolet.prac.graphql
 
 import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
-import net.petitviolet.prac.graphql.dao.{ container, AuthnException }
+import net.petitviolet.prac.graphql.dao.AuthnException
 import net.petitviolet.prac.graphql.scheme.SchemaDefinition
 import sangria.ast.Document
 import sangria.execution.deferred.DeferredResolver
@@ -19,7 +19,8 @@ object GraphQLServer {
 
   def showSchema: String = SchemaRenderer.renderSchema(schema)
 
-  def execute(jsValue: JsValue)(implicit ec: ExecutionContext): Future[(StatusCode, JsValue)] = {
+  def execute(jsValue: JsValue, tokenOpt: Option[String])(
+      implicit ec: ExecutionContext): Future[(StatusCode, JsValue)] = {
     val JsObject(fields) = jsValue
     val operation = fields.get("operationName") collect {
       case JsString(op) => op
@@ -39,9 +40,9 @@ object GraphQLServer {
         queryDocument,
         vars,
         operation,
-        dao.container(),
+        GraphQLContext(tokenOpt),
         SchemaDefinition.resolver,
-        Middlewares.values,
+        Middlewares.values
       )
     }
   }
@@ -85,18 +86,18 @@ object Middlewares {
 
   lazy val values = auth :: logging :: Nil
 
-  private val auth = new Middleware[dao.container] with MiddlewareBeforeField[dao.container] {
+  private val auth = new Middleware[GraphQLContext] with MiddlewareBeforeField[GraphQLContext] {
     override type QueryVal = Unit
     override type FieldVal = Unit
 
-    override def beforeQuery(context: MiddlewareQueryContext[dao.container, _, _]) = ()
+    override def beforeQuery(context: MiddlewareQueryContext[GraphQLContext, _, _]) = ()
 
     override def afterQuery(queryVal: QueryVal,
-                            context: MiddlewareQueryContext[dao.container, _, _]) = ()
+                            context: MiddlewareQueryContext[GraphQLContext, _, _]) = ()
 
     override def beforeField(queryVal: QueryVal,
-                             mctx: MiddlewareQueryContext[dao.container, _, _],
-                             ctx: Context[dao.container, _]) = {
+                             mctx: MiddlewareQueryContext[GraphQLContext, _, _],
+                             ctx: Context[GraphQLContext, _]) = {
       val requireAuth = ctx.field.tags contains SchemaDefinition.Authenticated
 
       if (!requireAuth || (requireAuth && ctx.ctx.isLoggedIn)) {
@@ -107,15 +108,15 @@ object Middlewares {
     }
   }
 
-  private val logging: Middleware[dao.container] = new Middleware[dao.container] {
+  private val logging: Middleware[GraphQLContext] = new Middleware[GraphQLContext] {
     override type QueryVal = Unit
 
-    override def beforeQuery(context: MiddlewareQueryContext[container, _, _]): QueryVal = {
+    override def beforeQuery(context: MiddlewareQueryContext[GraphQLContext, _, _]): QueryVal = {
       logger.info(s"before OperationName: ${context.operationName}")
     }
 
     override def afterQuery(queryVal: QueryVal,
-                            context: MiddlewareQueryContext[container, _, _]): Unit = {
+                            context: MiddlewareQueryContext[GraphQLContext, _, _]): Unit = {
       logger.info(s"after queryVal: $queryVal")
     }
   }
