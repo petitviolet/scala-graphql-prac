@@ -4,7 +4,7 @@ abstract case class container private (userDao: UserDao,
                                        todoDao: TodoDao,
                                        tokenOpt: Option[String]) {
 
-  def loggedIn(token: String): container = tokenOpt.fold(this) { _ =>
+  def loggedIn(token: String): container = {
     container.apply(token)
   }
 
