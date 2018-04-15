@@ -1,7 +1,7 @@
 package net.petitviolet.prac.graphql
 
 import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
-import net.petitviolet.prac.graphql.dao.container
+import net.petitviolet.prac.graphql.dao.{ container, AuthnException }
 import net.petitviolet.prac.graphql.scheme.SchemaDefinition
 import sangria.ast.Document
 import sangria.execution.deferred.DeferredResolver
@@ -9,7 +9,7 @@ import sangria.execution._
 import sangria.marshalling.sprayJson._
 import sangria.parser.QueryParser
 import sangria.renderer.SchemaRenderer
-import sangria.schema.Schema
+import sangria.schema.{ Context, Schema }
 import spray.json.{ JsObject, JsString, JsValue }
 
 import scala.concurrent.{ ExecutionContext, Future }
@@ -41,7 +41,7 @@ object GraphQLServer {
         operation,
         dao.container(),
         SchemaDefinition.resolver,
-        Middlewares.logging :: Nil,
+        Middlewares.values,
       )
     }
   }
@@ -83,7 +83,31 @@ object Middlewares {
     def info(s: => String): Unit = println(s"[logging]$s")
   }
 
-  val logging: Middleware[dao.container] = new Middleware[dao.container] {
+  lazy val values = auth :: logging :: Nil
+
+  private val auth = new Middleware[dao.container] with MiddlewareBeforeField[dao.container] {
+    override type QueryVal = Unit
+    override type FieldVal = Unit
+
+    override def beforeQuery(context: MiddlewareQueryContext[dao.container, _, _]) = ()
+
+    override def afterQuery(queryVal: QueryVal,
+                            context: MiddlewareQueryContext[dao.container, _, _]) = ()
+
+    override def beforeField(queryVal: QueryVal,
+                             mctx: MiddlewareQueryContext[dao.container, _, _],
+                             ctx: Context[dao.container, _]) = {
+      val requireAuth = ctx.field.tags contains SchemaDefinition.Authenticated
+
+      if (!requireAuth || (requireAuth && ctx.ctx.isLoggedIn)) {
+        continue
+      } else {
+        throw AuthnException(s"you must login!. field: ${ctx.field.name}")
+      }
+    }
+  }
+
+  private val logging: Middleware[dao.container] = new Middleware[dao.container] {
     override type QueryVal = Unit
 
     override def beforeQuery(context: MiddlewareQueryContext[container, _, _]): QueryVal = {

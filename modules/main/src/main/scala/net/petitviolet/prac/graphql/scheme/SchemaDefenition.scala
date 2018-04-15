@@ -5,6 +5,7 @@ import java.util.concurrent.Executors
 import net.petitviolet.operator.toPipe
 import net.petitviolet.prac.graphql.dao
 import net.petitviolet.prac.graphql.dao.{ AuthnException, Id, Todo, User }
+import sangria.execution.FieldTag
 import sangria.execution.deferred.{ DeferredResolver, Fetcher, Relation }
 import sangria.macros.derive
 import sangria.schema._
@@ -12,6 +13,8 @@ import sangria.schema._
 import scala.concurrent.{ ExecutionContext, Future }
 
 object SchemaDefinition {
+  case object Authenticated extends FieldTag
+
   private lazy val schemas: Seq[MySchema] = List(
     UserSchema,
     TodoSchema,
@@ -245,13 +248,14 @@ object UserSchema extends MySchema {
           ),
           Field(
             "login",
-            StringType,
+            OptionType(StringType),
             arguments = args.email :: args.password :: Nil,
             resolve = { ctx =>
               val (email, password) = (ctx arg args.email, ctx arg args.password)
               UpdateCtx(ctx.ctx.userDao.login(email, password)) { token: String =>
-                log(s"logged in. email = $email, token = $token")
-                ctx.ctx.loggedIn(token)
+                val newCtx = ctx.ctx.loggedIn(token)
+                log(s"logged in. email = $email, token = $token, newCtx = ${newCtx}")
+                newCtx
               }
             }
           ),
@@ -259,6 +263,7 @@ object UserSchema extends MySchema {
             "update",
             OptionType(userType),
             arguments = args.id :: args.name :: Nil,
+            tags = SchemaDefinition.Authenticated :: Nil,
             resolve = { ctx =>
               println(s"update. ctx = ${ctx.ctx}")
               if (!ctx.ctx.isLoggedIn) throw AuthnException("you are not logged in.")
