@@ -49,9 +49,9 @@ object main extends App with Directives {
       } ~
       (post & path("graphql")) {
         entity(as[JsValue]) { jsObject =>
-          logRequestResult("/graphql", Logging.InfoLevel) {
-            complete(GraphQLServer.execute(jsObject)(executionContext))
-          }
+//          logRequestResult("/graphql", Logging.InfoLevel) {
+          complete(GraphQLServer.execute(jsObject)(executionContext))
+//          }
         }
       } ~
       (get & path("show")) {
