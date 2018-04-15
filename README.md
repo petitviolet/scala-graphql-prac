@@ -57,3 +57,14 @@ mutation UpdateTodo {
 ```shell-session
 sbt 'project main' 'docker:publishLocal'
 ```
+
+### run with curl
+
+
+```shell-session
+$ curl 'localhost:8080/graphql' -H"Content-Type: application/json" -XPOST -d'{"mutation": "mutation Login { user { login(email: \"hoge@example.com\", password: \"password\") } }"}'
+{"data":{"user":{"login":"e541c76d-efcb-4ab9-834c-a6688687df11"}}}%
+
+$ curl 'localhost:8080/graphql' -H"Content-Type: application/json" -XPOST -d'{"mutation": "mutation UpdateUser { user { update(id: \"1\", name: \"updated2\") { id  name }  }}"}' -H"X-Token: 99d4f9b4-a092-4caf-8bc1-40cf716f5760"
+{"data":{"user":{"update":{"id":"1","name":"updated2"}}}}% 
+```
