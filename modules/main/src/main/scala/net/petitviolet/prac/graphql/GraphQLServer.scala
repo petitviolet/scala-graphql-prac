@@ -3,6 +3,7 @@ package net.petitviolet.prac.graphql
 import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
 import net.petitviolet.prac.graphql.dao.AuthnException
 import net.petitviolet.prac.graphql.scheme.SchemaDefinition
+import org.slf4j.LoggerFactory
 import sangria.ast.Document
 import sangria.execution.deferred.DeferredResolver
 import sangria.execution._
@@ -80,25 +81,26 @@ object GraphQLServer {
 }
 
 object Middlewares {
-  private val logger = new {
-    def info(s: => String): Unit = println(s"[logging]$s")
-  }
+  protected val logger = LoggerFactory.getLogger(this.getClass)
 
-  lazy val values = auth :: logging :: Nil
+  lazy val values: List[Middleware[GraphQLContext]] = auth :: logging :: Nil
 
   private val auth = new Middleware[GraphQLContext] with MiddlewareBeforeField[GraphQLContext] {
     override type QueryVal = Unit
     override type FieldVal = Unit
 
-    override def beforeQuery(context: MiddlewareQueryContext[GraphQLContext, _, _]) = ()
+    override def beforeQuery(context: MiddlewareQueryContext[GraphQLContext, _, _]): Unit = ()
 
     override def afterQuery(queryVal: QueryVal,
-                            context: MiddlewareQueryContext[GraphQLContext, _, _]) = ()
+                            context: MiddlewareQueryContext[GraphQLContext, _, _]): Unit = ()
 
-    override def beforeField(queryVal: QueryVal,
-                             mctx: MiddlewareQueryContext[GraphQLContext, _, _],
-                             ctx: Context[GraphQLContext, _]) = {
+    override def beforeField(
+        queryVal: QueryVal,
+        mctx: MiddlewareQueryContext[GraphQLContext, _, _],
+        ctx: Context[GraphQLContext, _]): BeforeFieldResult[GraphQLContext, Unit] = {
       val requireAuth = ctx.field.tags contains SchemaDefinition.Authenticated
+
+      logger.info(s"[auth]requireAuth: $requireAuth, ctx: ${ctx.ctx}")
 
       if (!requireAuth || (requireAuth && ctx.ctx.isLoggedIn)) {
         continue

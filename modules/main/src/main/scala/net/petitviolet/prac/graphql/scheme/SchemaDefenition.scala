@@ -5,6 +5,7 @@ import java.util.concurrent.Executors
 import net.petitviolet.operator.toPipe
 import net.petitviolet.prac.graphql.GraphQLContext
 import net.petitviolet.prac.graphql.dao.{ AuthnException, Id, Todo, User }
+import org.slf4j.LoggerFactory
 import sangria.execution.FieldTag
 import sangria.execution.deferred.{ DeferredResolver, Fetcher, Relation }
 import sangria.macros.derive
@@ -47,7 +48,9 @@ object SchemaDefinition {
 }
 
 sealed trait MySchema {
-  protected def log(msg: => String): Unit = println(s"[$name]$msg")
+  private val logger = LoggerFactory.getLogger(this.getClass)
+
+  protected def log(msg: => String): Unit = logger.info(s"[$name]$msg")
 
   def name: String
 
@@ -248,7 +251,7 @@ object UserSchema extends MySchema {
           ),
           Field(
             "login",
-            OptionType(StringType),
+            StringType,
             arguments = args.email :: args.password :: Nil,
             resolve = { ctx =>
               val (email, password) = (ctx arg args.email, ctx arg args.password)
