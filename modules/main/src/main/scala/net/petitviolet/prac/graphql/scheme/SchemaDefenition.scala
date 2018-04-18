@@ -261,6 +261,43 @@ object UserSchema extends MySchema {
             resolve = { ctx =>
               val (email, password) = (ctx arg args.email, ctx arg args.password)
 
+              /**
+               * This `UpdateCtx` does not work as wanted.
+               * {{{
+               * mutation LoginAndUpdateUser {
+               *     user {
+               *       login(email: "hoge@example.com", password: "password") {
+               *         value
+               *       }
+               *
+               *       # this `update` fails because of lack of auth.
+               *       update(id: "1", name: "updatedName") {
+               *         id
+               *         name
+               *       }
+               *     }
+               *   }
+               * }
+               * }}}
+               * `UpdateCtx` works only when `login` path is on the top-level, not in nested.
+               * {{{
+               * mutation LoginAndUpdateUser {
+               *     # user {	// here!
+               *       // login is the top-level.
+               *       login(email: "hoge@example.com", password: "password") {
+               *         value
+               *       }
+               *
+               *       # this `update` succeeded with auth.
+               *       update(id: "1", name: "updatedName") {
+               *         id
+               *         name
+               *       }
+               *     # }
+               *   }
+               * }
+               * }}}
+               */
               UpdateCtx(ctx.ctx.userDao.login(email, password)) { token =>
                 val newCtx = ctx.ctx.loggedIn(token)
                 log(s"logged in. email = $email, token = $token, newCtx = ${newCtx}")
