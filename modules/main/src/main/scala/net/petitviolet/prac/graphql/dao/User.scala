@@ -121,7 +121,7 @@ class UserDao extends RedisDao[User] {
     }
   }
 
-  def findByToken(token: Token): Option[User] = {
+  private def findByToken(token: Token): Option[User] = {
     withRedis { client =>
       withLogging(s"findByToken(${token.value})") {
         client

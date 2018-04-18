@@ -11,6 +11,10 @@ abstract case class GraphQLContext private (userDao: UserDao,
     GraphQLContext.apply(token)
   }
 
+  def authenticate(token: Token): GraphQLContext = {
+    GraphQLContext.apply(token)
+  }
+
   def isLoggedIn: Boolean = userOpt.isDefined
 }
 
@@ -24,9 +28,10 @@ object GraphQLContext {
     tokenOpt.fold(apply()) { Token.apply _ andThen apply }
   }
   def apply(token: Token): GraphQLContext = {
-    val user = userDao.findByToken(token)
+    val user = userDao.authenticate(token)
     new GraphQLContext(userDao, todoDao, Some(token), user) {}
   }
 
-  def apply(user: User): GraphQLContext = new GraphQLContext(userDao, todoDao, None, Some(user)) {}
+  def apply(token: Token, user: User): GraphQLContext =
+    new GraphQLContext(userDao, todoDao, Some(token), Some(user)) {}
 }

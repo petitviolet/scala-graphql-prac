@@ -2,7 +2,7 @@ package net.petitviolet.prac.graphql
 
 import akka.http.scaladsl.model.{ StatusCode, StatusCodes }
 import net.petitviolet.prac.graphql.dao.AuthnException
-import net.petitviolet.prac.graphql.scheme.SchemaDefinition
+import net.petitviolet.prac.graphql.scheme.{ Authentication, SchemaDefinition }
 import org.slf4j.LoggerFactory
 import sangria.ast.Document
 import sangria.execution.deferred.DeferredResolver
@@ -68,7 +68,7 @@ object GraphQLServer {
         operationName = operation,
         deferredResolver = deferredResolver,
         middleware = middlewares,
-        exceptionHandler = SchemaDefinition.errorHandler
+        exceptionHandler = Authentication.errorHandler
       )
       .map { jsValue =>
         OK -> jsValue
@@ -100,7 +100,7 @@ object Middlewares {
         queryVal: QueryVal,
         mctx: MiddlewareQueryContext[GraphQLContext, _, _],
         ctx: Context[GraphQLContext, _]): BeforeFieldResult[GraphQLContext, Unit] = {
-      val requireAuth = ctx.field.tags contains SchemaDefinition.Authenticated
+      val requireAuth = ctx.field.tags contains Authentication.Authenticated
 
       logger.info(s"[auth]field: ${ctx.field.name}, requireAuth: $requireAuth, ctx: ${ctx.ctx}")
 

@@ -14,11 +14,6 @@ import sangria.schema._
 import scala.concurrent.{ ExecutionContext, Future }
 
 object SchemaDefinition {
-  case object Authenticated extends FieldTag
-  val errorHandler = ExceptionHandler {
-    case (_, AuthnException(msg)) =>
-      HandledException(msg)
-  }
 
   private lazy val schemas: Seq[MySchema] = List(
     UserSchema,
@@ -28,11 +23,11 @@ object SchemaDefinition {
   lazy val queryType: ObjectType[GraphQLContext, Unit] = ObjectType.apply(
     "Query",
     fields[GraphQLContext, Unit](
-      schemas.map { _.asQueryField }: _*
+      Authentication.authenticateField ++ schemas.map { _.asQueryField }: _*
     )
   )
   lazy val mutationType: Option[ObjectType[GraphQLContext, Unit]] = {
-    val mutationFields = schemas.flatMap { _.asMutationField }
+    val mutationFields = Authentication.authenticateField ++ schemas.flatMap { _.asMutationField }
     if (mutationFields.isEmpty) None
     else
       Option.apply {
@@ -49,6 +44,54 @@ object SchemaDefinition {
   )
 
   lazy val schema = Schema.apply(queryType, mutationType)
+}
+
+object Authentication {
+  private val logger = LoggerFactory.getLogger(this.getClass)
+
+  case object Authenticated extends FieldTag
+  val errorHandler = ExceptionHandler {
+    case (_, AuthnException(msg)) =>
+      HandledException(msg)
+  }
+  private object args {
+    lazy val email = Argument("email", StringType, "email of user")
+    lazy val password = Argument("password", StringType, "password of user")
+    lazy val token = Argument("token", StringType, "token of logged in user")
+  }
+
+  private lazy val authenticateType: ObjectType[Unit, Token] =
+    derive.deriveObjectType[Unit, Token]()
+
+  lazy val authenticateField = {
+    fields[GraphQLContext, Unit](
+      Field(
+        "login",
+        authenticateType,
+        arguments = args.email :: args.password :: Nil,
+        resolve = { ctx =>
+          val (email, password) = (ctx arg args.email, ctx arg args.password)
+          UpdateCtx(ctx.ctx.userDao.login(email, password)) { token =>
+            val newCtx = ctx.ctx.loggedIn(token)
+            logger.info(s"logged in. email = $email, token = $token, newCtx = ${newCtx}")
+            newCtx
+          }
+        }
+      ),
+      Field(
+        "authenticate",
+        BooleanType,
+        arguments = args.token :: Nil,
+        resolve = { ctx =>
+          val token = Token(ctx arg args.token)
+          val authenticatedCtx = ctx.ctx.authenticate(token)
+          UpdateCtx(authenticatedCtx.isLoggedIn) { _ =>
+            authenticatedCtx
+          }
+        }
+      )
+    )
+  }
 }
 
 sealed trait MySchema {
@@ -190,8 +233,6 @@ object UserSchema extends MySchema {
     derive.DocumentField("name", "name of user"),
     derive.RenameField("createdAt", "created_at"),
   )
-  lazy val authenticateType: ObjectType[Unit, Token] = derive.deriveObjectType[Unit, Token]()
-
   private object args {
     lazy val id = Argument("id", StringType, "id of user")
     lazy val email = Argument("email", StringType, "email of user")
@@ -255,61 +296,10 @@ object UserSchema extends MySchema {
             }
           ),
           Field(
-            "login",
-            authenticateType,
-            arguments = args.email :: args.password :: Nil,
-            resolve = { ctx =>
-              val (email, password) = (ctx arg args.email, ctx arg args.password)
-
-              /**
-               * This `UpdateCtx` does not work as wanted.
-               * {{{
-               * mutation LoginAndUpdateUser {
-               *     user {
-               *       login(email: "hoge@example.com", password: "password") {
-               *         value
-               *       }
-               *
-               *       # this `update` fails because of lack of auth.
-               *       update(id: "1", name: "updatedName") {
-               *         id
-               *         name
-               *       }
-               *     }
-               *   }
-               * }
-               * }}}
-               * `UpdateCtx` works only when `login` path is on the top-level, not in nested.
-               * {{{
-               * mutation LoginAndUpdateUser {
-               *     # user {	// here!
-               *       // login is the top-level.
-               *       login(email: "hoge@example.com", password: "password") {
-               *         value
-               *       }
-               *
-               *       # this `update` succeeded with auth.
-               *       update(id: "1", name: "updatedName") {
-               *         id
-               *         name
-               *       }
-               *     # }
-               *   }
-               * }
-               * }}}
-               */
-              UpdateCtx(ctx.ctx.userDao.login(email, password)) { token =>
-                val newCtx = ctx.ctx.loggedIn(token)
-                log(s"logged in. email = $email, token = $token, newCtx = ${newCtx}")
-                newCtx
-              }
-            }
-          ),
-          Field(
             "update",
             OptionType(userType),
             arguments = args.id :: args.name :: Nil,
-            tags = SchemaDefinition.Authenticated :: Nil,
+            tags = Authentication.Authenticated :: Nil,
             resolve = { ctx =>
               println(s"update. ctx = ${ctx.ctx}")
               if (!ctx.ctx.isLoggedIn) throw AuthnException("you are not logged in.")
