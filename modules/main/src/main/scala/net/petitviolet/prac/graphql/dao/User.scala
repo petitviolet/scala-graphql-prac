@@ -8,6 +8,8 @@ import spray.json.JsonFormat
 
 import scala.util.{ Failure, Success, Try }
 
+case class Token(value: String)
+
 case class User(id: Id,
                 name: String,
                 email: String,
@@ -19,7 +21,7 @@ case class User(id: Id,
 }
 
 object User {
-  def createToken = UUID.randomUUID().toString
+  def createToken = Token(UUID.randomUUID().toString)
 
   private val digest = MessageDigest.getInstance("SHA-256")
 
@@ -63,11 +65,11 @@ class UserDao extends RedisDao[User] {
   override protected val prefix: String = "user"
   override protected implicit val jsonFormat: JsonFormat[User] = User.userJsonFormat
 
-  def authenticate(token: String): Option[User] = {
+  def authenticate(token: Token): Option[User] = {
     withRedis { client =>
-      withLogging(s"findByToken($token)") {
+      withLogging(s"findByToken(${token.value})") {
         client
-          .get[Id](s"$prefix:token:$token")
+          .get[Id](s"$prefix:token:${token.value}")
           .flatMap {
             findById
           }
@@ -75,11 +77,11 @@ class UserDao extends RedisDao[User] {
     }
   }
 
-  def login(email: String, password: String): Try[String] = {
-    def storeToken(user: User, token: String) = {
+  def login(email: String, password: String): Try[Token] = {
+    def storeToken(user: User, token: Token) = {
       withRedis { client =>
-        withLogging(s"storeToken. token -> $token") {
-          client.set(s"$prefix:token:$token", user.id)
+        withLogging(s"storeToken. token -> ${token.value}") {
+          client.set(s"$prefix:token:${token.value}", user.id)
         }
       }
     }
@@ -119,11 +121,11 @@ class UserDao extends RedisDao[User] {
     }
   }
 
-  def findByToken(token: String): Option[User] = {
+  def findByToken(token: Token): Option[User] = {
     withRedis { client =>
-      withLogging(s"findByToken($token)") {
+      withLogging(s"findByToken(${token.value})") {
         client
-          .get[Id](s"$prefix:token:$token")
+          .get[Id](s"$prefix:token:${token.value}")
           .flatMap { findById }
       }
     }

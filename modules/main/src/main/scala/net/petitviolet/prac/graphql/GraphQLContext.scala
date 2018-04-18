@@ -1,13 +1,13 @@
 package net.petitviolet.prac.graphql
 
-import net.petitviolet.prac.graphql.dao.{ TodoDao, User, UserDao }
+import net.petitviolet.prac.graphql.dao.{ TodoDao, Token, User, UserDao }
 
 abstract case class GraphQLContext private (userDao: UserDao,
                                             todoDao: TodoDao,
-                                            tokenOpt: Option[String] = None,
+                                            tokenOpt: Option[Token] = None,
                                             userOpt: Option[User] = None) {
 
-  def loggedIn(token: String): GraphQLContext = {
+  def loggedIn(token: Token): GraphQLContext = {
     GraphQLContext.apply(token)
   }
 
@@ -21,9 +21,9 @@ object GraphQLContext {
   def apply(): GraphQLContext = new GraphQLContext(userDao, todoDao, None, None) {}
 
   def apply(tokenOpt: Option[String]): GraphQLContext = {
-    tokenOpt.fold(apply()) { apply }
+    tokenOpt.fold(apply()) { Token.apply _ andThen apply }
   }
-  def apply(token: String): GraphQLContext = {
+  def apply(token: Token): GraphQLContext = {
     val user = userDao.findByToken(token)
     new GraphQLContext(userDao, todoDao, Some(token), user) {}
   }

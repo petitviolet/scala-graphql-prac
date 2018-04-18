@@ -4,9 +4,9 @@ import java.util.concurrent.Executors
 
 import net.petitviolet.operator.toPipe
 import net.petitviolet.prac.graphql.GraphQLContext
-import net.petitviolet.prac.graphql.dao.{ AuthnException, Id, Todo, User }
+import net.petitviolet.prac.graphql.dao.{ AuthnException, Id, Todo, Token, User }
 import org.slf4j.LoggerFactory
-import sangria.execution.FieldTag
+import sangria.execution.{ ExceptionHandler, FieldTag, HandledException }
 import sangria.execution.deferred.{ DeferredResolver, Fetcher, Relation }
 import sangria.macros.derive
 import sangria.schema._
@@ -15,6 +15,10 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 object SchemaDefinition {
   case object Authenticated extends FieldTag
+  val errorHandler = ExceptionHandler {
+    case (_, AuthnException(msg)) =>
+      HandledException(msg)
+  }
 
   private lazy val schemas: Seq[MySchema] = List(
     UserSchema,
@@ -186,6 +190,7 @@ object UserSchema extends MySchema {
     derive.DocumentField("name", "name of user"),
     derive.RenameField("createdAt", "created_at"),
   )
+  lazy val authenticateType: ObjectType[Unit, Token] = derive.deriveObjectType[Unit, Token]()
 
   private object args {
     lazy val id = Argument("id", StringType, "id of user")
@@ -251,10 +256,11 @@ object UserSchema extends MySchema {
           ),
           Field(
             "login",
-            StringType,
+            authenticateType,
             arguments = args.email :: args.password :: Nil,
             resolve = { ctx =>
               val (email, password) = (ctx arg args.email, ctx arg args.password)
+
               UpdateCtx(ctx.ctx.userDao.login(email, password)) { token =>
                 val newCtx = ctx.ctx.loggedIn(token)
                 log(s"logged in. email = $email, token = $token, newCtx = ${newCtx}")

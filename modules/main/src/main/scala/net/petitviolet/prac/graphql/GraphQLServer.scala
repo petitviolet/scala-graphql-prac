@@ -17,6 +17,7 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 object GraphQLServer {
   private def schema = SchemaDefinition.schema
+//  private def schema = Schema(UserSchema.query, UserSchema.mutation)
 
   def showSchema: String = SchemaRenderer.renderSchema(schema)
 
@@ -66,7 +67,8 @@ object GraphQLServer {
         variables = vars,
         operationName = operation,
         deferredResolver = deferredResolver,
-        middleware = middlewares
+        middleware = middlewares,
+        exceptionHandler = SchemaDefinition.errorHandler
       )
       .map { jsValue =>
         OK -> jsValue
@@ -105,7 +107,9 @@ object Middlewares {
       if (!requireAuth || (requireAuth && ctx.ctx.isLoggedIn)) {
         continue
       } else {
-        throw AuthnException(s"you must login!. field: ${ctx.field.name}")
+        val error = AuthnException(s"you must login!. field: ${ctx.field.name}")
+        logger.error("error!", error)
+        throw error
       }
     }
   }
