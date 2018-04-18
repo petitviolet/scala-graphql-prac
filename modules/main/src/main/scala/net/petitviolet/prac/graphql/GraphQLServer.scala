@@ -100,7 +100,7 @@ object Middlewares {
         ctx: Context[GraphQLContext, _]): BeforeFieldResult[GraphQLContext, Unit] = {
       val requireAuth = ctx.field.tags contains SchemaDefinition.Authenticated
 
-      logger.info(s"[auth]requireAuth: $requireAuth, ctx: ${ctx.ctx}")
+      logger.info(s"[auth]field: ${ctx.field.name}, requireAuth: $requireAuth, ctx: ${ctx.ctx}")
 
       if (!requireAuth || (requireAuth && ctx.ctx.isLoggedIn)) {
         continue

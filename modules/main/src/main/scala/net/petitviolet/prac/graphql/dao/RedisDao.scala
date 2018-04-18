@@ -5,6 +5,9 @@ import org.slf4j.LoggerFactory
 import spray.json.JsonFormat
 
 trait RedisDao[A <: Entity] {
+
+  override val toString = s"${getClass.getSimpleName}"
+
   protected val prefix: String
   protected implicit def jsonFormat: JsonFormat[A]
   protected val logger = LoggerFactory.getLogger(this.getClass)

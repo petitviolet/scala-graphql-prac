@@ -78,7 +78,7 @@ class UserDao extends RedisDao[User] {
   def login(email: String, password: String): Try[String] = {
     def storeToken(user: User, token: String) = {
       withRedis { client =>
-        withLogging(s"create: token -> $token") {
+        withLogging(s"storeToken. token -> $token") {
           client.set(s"$prefix:token:$token", user.id)
         }
       }
@@ -128,5 +128,4 @@ class UserDao extends RedisDao[User] {
       }
     }
   }
-
 }
