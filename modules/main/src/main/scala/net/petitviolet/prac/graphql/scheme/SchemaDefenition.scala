@@ -304,10 +304,14 @@ object UserSchema extends MySchema {
               println(s"update. ctx = ${ctx.ctx}")
               if (!ctx.ctx.isLoggedIn) throw AuthnException("you are not logged in.")
               else {
-                ctx.ctx.userDao.findById(ctx arg args.id).map { user =>
+                val userId = ctx arg args.id
+                val user = ctx.ctx.userOpt.get
+                if (userId == user.id.value) {
                   user.updateName(ctx arg args.name) <| {
                     ctx.ctx.userDao.update
                   }
+                } else {
+                  throw AuthnException(s"you do not have permission to change user($userId)")
                 }
               }
             }
