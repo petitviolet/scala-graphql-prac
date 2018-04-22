@@ -24,7 +24,7 @@ import scala.concurrent.duration._
 import scala.io.StdIn
 
 object sample {
-  def hoge(args: Array[String]): Unit = {
+  def main(args: Array[String]): Unit = {
 
     implicit val system: ActorSystem = ActorSystem("graphql-prac")
     implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -35,9 +35,9 @@ object sample {
     val route: Route =
       (post & path("graphql")) {
         entity(as[JsValue]) { jsObject =>
-          logRequestResult("/graphql", Logging.InfoLevel) {
-            complete(GraphQLServer.execute(jsObject)(executionContext))
-          }
+//          logRequestResult("/graphql", Logging.InfoLevel) {
+          complete(GraphQLServer.execute(jsObject)(executionContext))
+//          }
         }
       } ~
         get {
@@ -89,12 +89,19 @@ private object GraphQLServer {
     Future.fromTry(QueryParser.parse(document)) flatMap { queryDocument =>
       Executor
         .execute(
-          SchemaSample.schema,
+          AuthSampleSchema.schema,
           queryDocument,
-          repository,
+          AuthSampleSchema.GraphQLContext(),
           operationName = operation,
           variables = vars
         )
+//        .execute(
+//          SchemaSample.schema,
+//          queryDocument,
+//          repository,
+//          operationName = operation,
+//          variables = vars
+//        )
         .map { jsValue =>
           OK -> jsValue
         }
@@ -195,4 +202,100 @@ private object SchemaSample {
   }
 
   lazy val schema: Schema[MyObjectRepository, Unit] = Schema(myQuery, Some(myMutation))
+}
+
+private object AuthSampleSchema {
+  import scala.util.Try
+
+  // ユーザー
+  case class User(id: Long, name: String, email: String, password: String) {
+    def updateName(newName: String) = copy(name = newName)
+  }
+  private object UserDao {
+    private val userMap: collection.mutable.Map[Token, User] = collection.mutable.HashMap(
+      Token("1") -> User(1L, "user-1", "user-1@example.com", "password"),
+      Token("2") -> User(2L, "user-2", "user-2@example.com", "password")
+    )
+    def findAll: Seq[User] = userMap.values.toList
+
+    def login(email: String, password: String): Try[Token] =
+      Try(userMap.collectFirst {
+        case (token, user) if user.email == email && user.password == password => token
+      }.get)
+
+    def findByToken(token: Token): Option[User] = userMap.get(token)
+
+    def update(newUser: User): Unit = userMap.update(Token(newUser.id.toString), newUser)
+  }
+  // 認証トークン
+  case class Token(value: String)
+
+  // Ctxとして使用
+  case class GraphQLContext(userOpt: Option[User] = None) {
+    // ログイン処理
+    def login(email: String, password: String): Try[Token] = UserDao.login(email, password)
+    // ログインして得られたTokenからUserオブジェクトを見付けてきて保持する
+    def loggedIn(token: Token): GraphQLContext = copy(userOpt = UserDao.findByToken(token))
+  }
+  private val userType: ObjectType[Unit, User] = derive.deriveObjectType[Unit, User]()
+  private val authenticateType: ObjectType[Unit, Token] = derive.deriveObjectType[Unit, Token]()
+
+  private object args {
+    lazy val name = Argument("name", StringType, "name of user")
+    lazy val email = Argument("email", StringType, "email of user")
+    lazy val password = Argument("password", StringType, "password of user")
+  }
+
+  private val authenticateField = fields[GraphQLContext, Unit](
+    Field(
+      "login",
+      authenticateType,
+      arguments = args.email :: args.password :: Nil,
+      resolve = { ctx =>
+        ctx.withArgs(args.email, args.password) { (email, password) =>
+          // login処理を実行
+          UpdateCtx(ctx.ctx.login(email, password)) { token: Token =>
+            // loginが成功(Successなら)したらctxを更新
+            val newCtx = ctx.ctx.loggedIn(token)
+            println(s"newCtx: ${newCtx}")
+            newCtx
+          }
+        }
+      }
+    )
+  )
+
+  private val loggedInUserField: Field[GraphQLContext, Unit] = Field(
+    "get",
+    OptionType(userType),
+    arguments = Nil,
+    resolve = ctx => ctx.ctx.userOpt
+  )
+
+  private val userQuery = fields[GraphQLContext, Unit](loggedInUserField)
+
+  private val userMutation = fields[GraphQLContext, Unit](
+    loggedInUserField,
+    Field(
+      "update",
+      userType,
+      arguments = args.name :: Nil,
+      resolve = { ctx =>
+        ctx.withArgs(args.name) { name =>
+          // ここで認証されていないのはおかしい
+          val user = ctx.ctx.userOpt.get
+          val newUser = user.updateName(name)
+          UserDao.update(newUser)
+          newUser
+        }
+      }
+    )
+  )
+
+  private val query =
+    ObjectType("Query", fields[GraphQLContext, Unit](authenticateField ++ userQuery: _*))
+  private val mutation =
+    ObjectType("Mutation", fields[GraphQLContext, Unit](authenticateField ++ userMutation: _*))
+
+  lazy val schema: Schema[GraphQLContext, Unit] = Schema(query, Some(mutation))
 }
