@@ -204,17 +204,17 @@ private object SchemaSample {
   lazy val schema: Schema[MyObjectRepository, Unit] = Schema(myQuery, Some(myMutation))
 }
 
+// just a toy sample
 private object AuthSampleSchema {
   import scala.util.Try
 
-  // ユーザー
   case class User(id: Long, name: String, email: String, password: String) {
-    def updateName(newName: String) = copy(name = newName)
+    def updateName(newName: String): User = copy(name = newName)
   }
   private object UserDao {
     private val userMap: collection.mutable.Map[Token, User] = collection.mutable.HashMap(
-      Token("1") -> User(1L, "user-1", "user-1@example.com", "password"),
-      Token("2") -> User(2L, "user-2", "user-2@example.com", "password")
+      Token("token-1") -> User(1L, "user-1", "user-1@example.com", "password"),
+      Token("token-2") -> User(2L, "user-2", "user-2@example.com", "password")
     )
     def findAll: Seq[User] = userMap.values.toList
 
@@ -227,36 +227,54 @@ private object AuthSampleSchema {
 
     def update(newUser: User): Unit = userMap.update(Token(newUser.id.toString), newUser)
   }
-  // 認証トークン
+  // for authentication
   case class Token(value: String)
 
-  // Ctxとして使用
+  // use as `Ctx`
   case class GraphQLContext(userOpt: Option[User] = None) {
-    // ログイン処理
-    def login(email: String, password: String): Try[Token] = UserDao.login(email, password)
-    // ログインして得られたTokenからUserオブジェクトを見付けてきて保持する
-    def loggedIn(token: Token): GraphQLContext = copy(userOpt = UserDao.findByToken(token))
+    def authenticate(token: Token): GraphQLContext = copy(userOpt = UserDao.findByToken(token))
+    def loggedIn(user: User): GraphQLContext = copy(userOpt = Some(user))
   }
   private val userType: ObjectType[Unit, User] = derive.deriveObjectType[Unit, User]()
-  private val authenticateType: ObjectType[Unit, Token] = derive.deriveObjectType[Unit, Token]()
+  private val tokenType: ObjectType[Unit, Token] = derive.deriveObjectType[Unit, Token]()
 
   private object args {
     lazy val name = Argument("name", StringType, "name of user")
     lazy val email = Argument("email", StringType, "email of user")
     lazy val password = Argument("password", StringType, "password of user")
+    lazy val token = Argument("token", StringType, "token of logged in user")
   }
 
-  private val authenticateField = fields[GraphQLContext, Unit](
+  private val authenticateFields = fields[GraphQLContext, Unit](
+    Field(
+      "authenticate",
+      OptionType(userType),
+      arguments = args.token :: Nil,
+      resolve = { ctx =>
+        ctx.withArgs(args.token) { (token) =>
+          // execute authentication process
+          UpdateCtx(UserDao.findByToken(Token(token))) { userOpt =>
+            userOpt.fold(ctx.ctx) { user =>
+              // when found user, update ctx
+              val newCtx = ctx.ctx.loggedIn(user)
+              println(s"newCtx: ${newCtx}")
+              newCtx
+            }
+          }
+        }
+      }
+    ),
     Field(
       "login",
-      authenticateType,
+      OptionType(tokenType),
       arguments = args.email :: args.password :: Nil,
       resolve = { ctx =>
         ctx.withArgs(args.email, args.password) { (email, password) =>
-          // login処理を実行
-          UpdateCtx(ctx.ctx.login(email, password)) { token: Token =>
-            // loginが成功(Successなら)したらctxを更新
-            val newCtx = ctx.ctx.loggedIn(token)
+          // execute login process
+          UpdateCtx(UserDao.login(email, password)) { token: Token =>
+            // when succeeded, update ctx
+            val loggedInUser = UserDao.findByToken(token).get
+            val newCtx = ctx.ctx.loggedIn(loggedInUser)
             println(s"newCtx: ${newCtx}")
             newCtx
           }
@@ -282,7 +300,7 @@ private object AuthSampleSchema {
       arguments = args.name :: Nil,
       resolve = { ctx =>
         ctx.withArgs(args.name) { name =>
-          // ここで認証されていないのはおかしい
+          // if not authenticated, its ridiculous!
           val user = ctx.ctx.userOpt.get
           val newUser = user.updateName(name)
           UserDao.update(newUser)
@@ -293,9 +311,9 @@ private object AuthSampleSchema {
   )
 
   private val query =
-    ObjectType("Query", fields[GraphQLContext, Unit](authenticateField ++ userQuery: _*))
+    ObjectType("Query", fields[GraphQLContext, Unit](authenticateFields ++ userQuery: _*))
   private val mutation =
-    ObjectType("Mutation", fields[GraphQLContext, Unit](authenticateField ++ userMutation: _*))
+    ObjectType("Mutation", fields[GraphQLContext, Unit](authenticateFields ++ userMutation: _*))
 
   lazy val schema: Schema[GraphQLContext, Unit] = Schema(query, Some(mutation))
 }
