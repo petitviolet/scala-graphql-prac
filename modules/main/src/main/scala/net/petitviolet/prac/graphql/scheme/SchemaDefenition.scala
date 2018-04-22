@@ -70,11 +70,12 @@ object Authentication {
         authenticateType,
         arguments = args.email :: args.password :: Nil,
         resolve = { ctx =>
-          val (email, password) = (ctx arg args.email, ctx arg args.password)
-          UpdateCtx(ctx.ctx.userDao.login(email, password)) { token =>
-            val newCtx = ctx.ctx.loggedIn(token)
-            logger.info(s"logged in. email = $email, token = $token, newCtx = ${newCtx}")
-            newCtx
+          ctx.withArgs(args.email, args.password) { (email, password) =>
+            UpdateCtx(ctx.ctx.userDao.login(email, password)) { token =>
+              val newCtx = ctx.ctx.loggedIn(token)
+              logger.info(s"logged in. email = $email, token = $token, newCtx = ${newCtx}")
+              newCtx
+            }
           }
         }
       ),
