@@ -225,15 +225,16 @@ private object AuthSampleSchema {
 
     def findByToken(token: Token): Option[User] = userMap.get(token)
 
-    def update(newUser: User): Unit = userMap.update(Token(newUser.id.toString), newUser)
+    def update(newUser: User): Unit = userMap.update(Token(s"token-${newUser.id}"), newUser)
   }
   // for authentication
   case class Token(value: String)
 
   // use as `Ctx`
   case class GraphQLContext(userOpt: Option[User] = None) {
-    def authenticate(token: Token): GraphQLContext = copy(userOpt = UserDao.findByToken(token))
+    private[AuthSampleSchema] val userDao = UserDao
     def loggedIn(user: User): GraphQLContext = copy(userOpt = Some(user))
+    def authenticate(token: Token): GraphQLContext = copy(userOpt = userDao.findByToken(token))
   }
   private val userType: ObjectType[Unit, User] = derive.deriveObjectType[Unit, User]()
   private val tokenType: ObjectType[Unit, Token] = derive.deriveObjectType[Unit, Token]()
@@ -253,7 +254,7 @@ private object AuthSampleSchema {
       resolve = { ctx =>
         ctx.withArgs(args.token) { (token) =>
           // execute authentication process
-          UpdateCtx(UserDao.findByToken(Token(token))) { userOpt =>
+          UpdateCtx(ctx.ctx.userDao.findByToken(Token(token))) { userOpt =>
             userOpt.fold(ctx.ctx) { user =>
               // when found user, update ctx
               val newCtx = ctx.ctx.loggedIn(user)
@@ -271,9 +272,9 @@ private object AuthSampleSchema {
       resolve = { ctx =>
         ctx.withArgs(args.email, args.password) { (email, password) =>
           // execute login process
-          UpdateCtx(UserDao.login(email, password)) { token: Token =>
+          UpdateCtx(ctx.ctx.userDao.login(email, password)) { token: Token =>
             // when succeeded, update ctx
-            val loggedInUser = UserDao.findByToken(token).get
+            val loggedInUser = ctx.ctx.userDao.findByToken(token).get
             val newCtx = ctx.ctx.loggedIn(loggedInUser)
             println(s"newCtx: ${newCtx}")
             newCtx
