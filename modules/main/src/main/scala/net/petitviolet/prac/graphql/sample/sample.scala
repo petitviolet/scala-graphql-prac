@@ -312,9 +312,32 @@ private object AuthSampleSchema {
   )
 
   private val query =
-    ObjectType("Query", fields[GraphQLContext, Unit](authenticateFields ++ userQuery: _*))
+    ObjectType(
+      "Query",
+      fields[GraphQLContext, Unit](
+        Field(
+          "User",
+          ObjectType("User", fields[GraphQLContext, Unit](authenticateFields ++ userQuery: _*)),
+          resolve = _ => ()
+        )
+      ))
+
   private val mutation =
-    ObjectType("Mutation", fields[GraphQLContext, Unit](authenticateFields ++ userMutation: _*))
+    ObjectType("Mutation",
+      authenticateFields ++ fields[GraphQLContext, Unit](
+        Field("User",
+          ObjectType("User", fields[GraphQLContext, Unit](userMutation: _*)),
+          resolve = _ => ())
+      ))
+//  private val mutation =
+//    ObjectType(
+//      "Mutation",
+//      fields[GraphQLContext, Unit](
+//        Field("prefix",
+//              ObjectType("prefix",
+//                         fields[GraphQLContext, Unit](authenticateFields ++ userMutation: _*)),
+//              resolve = _ => ())
+//      ))
 
   lazy val schema: Schema[GraphQLContext, Unit] = Schema(query, Some(mutation))
 }
