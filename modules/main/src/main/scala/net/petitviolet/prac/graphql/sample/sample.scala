@@ -89,19 +89,12 @@ private object GraphQLServer {
     Future.fromTry(QueryParser.parse(document)) flatMap { queryDocument =>
       Executor
         .execute(
-          AuthSampleSchema.schema,
+          SchemaSample.schema,
           queryDocument,
-          AuthSampleSchema.GraphQLContext(),
+          repository,
           operationName = operation,
           variables = vars
         )
-//        .execute(
-//          SchemaSample.schema,
-//          queryDocument,
-//          repository,
-//          operationName = operation,
-//          variables = vars
-//        )
         .map { jsValue =>
           OK -> jsValue
         }
@@ -324,11 +317,11 @@ private object AuthSampleSchema {
 
   private val mutation =
     ObjectType("Mutation",
-      authenticateFields ++ fields[GraphQLContext, Unit](
-        Field("User",
-          ObjectType("User", fields[GraphQLContext, Unit](userMutation: _*)),
-          resolve = _ => ())
-      ))
+               authenticateFields ++ fields[GraphQLContext, Unit](
+                 Field("User",
+                       ObjectType("User", fields[GraphQLContext, Unit](userMutation: _*)),
+                       resolve = _ => ())
+               ))
 //  private val mutation =
 //    ObjectType(
 //      "Mutation",

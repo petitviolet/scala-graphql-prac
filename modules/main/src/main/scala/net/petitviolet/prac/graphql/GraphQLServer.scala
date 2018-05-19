@@ -17,7 +17,6 @@ import scala.concurrent.{ ExecutionContext, Future }
 
 object GraphQLServer {
   private def schema = SchemaDefinition.schema
-//  private def schema = Schema(UserSchema.query, UserSchema.mutation)
 
   def showSchema: String = SchemaRenderer.renderSchema(schema)
 
