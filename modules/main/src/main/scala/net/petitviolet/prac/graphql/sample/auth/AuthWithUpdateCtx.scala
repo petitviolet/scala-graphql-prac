@@ -5,6 +5,13 @@ import sangria.schema._
 
 // just a toy sample
 object AuthWithUpdateCtx {
+  case class GraphQLContext(userOpt: Option[User] = None) {
+    private[auth] val userDao = UserDao
+
+    def loggedIn(user: User): GraphQLContext = copy(userOpt = Some(user))
+
+    def authenticate(token: Token): GraphQLContext = copy(userOpt = userDao.findByToken(token))
+  }
 
   private val authenticateFields = fields[GraphQLContext, Unit](
     Field(

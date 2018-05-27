@@ -29,14 +29,6 @@ object UserDao {
 case class Token(value: String)
 
 // use as `Ctx`
-case class GraphQLContext(userOpt: Option[User] = None) {
-  private[auth] val userDao = UserDao
-
-  def loggedIn(user: User): GraphQLContext = copy(userOpt = Some(user))
-
-  def authenticate(token: Token): GraphQLContext = copy(userOpt = userDao.findByToken(token))
-}
-
 object Types {
   val userType: ObjectType[Unit, User] = derive.deriveObjectType[Unit, User]()
   val tokenType: ObjectType[Unit, Token] = derive.deriveObjectType[Unit, Token]()

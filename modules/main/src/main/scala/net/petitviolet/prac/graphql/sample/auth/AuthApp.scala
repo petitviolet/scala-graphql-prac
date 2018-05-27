@@ -34,7 +34,10 @@ object AuthApp {
       (post & path("graphql")) {
         entity(as[JsValue]) { jsObject =>
 //          logRequestResult("/graphql", Logging.InfoLevel) {
-          complete(GraphQLServer.execute(jsObject, AuthWithUpdateCtx.schema)(executionContext))
+          complete(
+            GraphQLServer.execute(jsObject,
+                                  AuthWithUpdateCtx.GraphQLContext(),
+                                  AuthWithUpdateCtx.schema)(executionContext))
 //          }
         }
       } ~
@@ -69,7 +72,7 @@ object AuthApp {
 }
 
 private object GraphQLServer {
-  def execute(jsValue: JsValue, schema: Schema[GraphQLContext, Unit])(
+  def execute[Ctx](jsValue: JsValue, ctx: Ctx, schema: Schema[Ctx, Unit])(
       implicit ec: ExecutionContext): Future[(StatusCode, JsValue)] = {
     val JsObject(fields) = jsValue
     val operation = fields.get("operationName") collect {
@@ -88,7 +91,7 @@ private object GraphQLServer {
         .execute(
           schema,
           queryDocument,
-          GraphQLContext(),
+          ctx,
           operationName = operation,
           variables = vars
         )
