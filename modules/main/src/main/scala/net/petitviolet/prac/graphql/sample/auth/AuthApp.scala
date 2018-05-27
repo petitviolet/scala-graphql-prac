@@ -33,12 +33,15 @@ object AuthApp {
     val route: Route =
       (post & path("graphql")) {
         entity(as[JsValue]) { jsObject =>
-//          logRequestResult("/graphql", Logging.InfoLevel) {
-          complete(
-            GraphQLServer.execute(jsObject,
-                                  AuthWithUpdateCtx.GraphQLContext(),
-                                  AuthWithUpdateCtx.schema)(executionContext))
-//          }
+          optionalHeaderValueByName("X-Token") { tokenOpt =>
+            complete(
+              GraphQLServer.execute(jsObject,
+                                    AuthWithHeader.GraphQLContext.create(tokenOpt),
+                                    AuthWithHeader.schema)(executionContext))
+//            GraphQLServer.execute(jsObject,
+//                                  AuthWithUpdateCtx.GraphQLContext(),
+//                                  AuthWithUpdateCtx.schema)(executionContext))
+          }
         }
       } ~
         get {
