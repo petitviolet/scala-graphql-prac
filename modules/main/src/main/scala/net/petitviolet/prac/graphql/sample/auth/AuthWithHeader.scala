@@ -17,7 +17,7 @@ object AuthWithHeader {
     }
   }
 
-  private val authenticateFields = fields[GraphQLContext, Unit](
+  private val loginField = fields[GraphQLContext, Unit](
     Field(
       "login",
       OptionType(tokenType),
@@ -31,17 +31,14 @@ object AuthWithHeader {
     )
   )
 
-  private val loggedInUserField: Field[GraphQLContext, Unit] = Field(
-    "get",
+  private val viewerField: Field[GraphQLContext, Unit] = Field(
+    "viewer",
     OptionType(userType),
     arguments = Nil,
     resolve = ctx => ctx.ctx.userOpt
   )
 
-  private val userQuery = fields[GraphQLContext, Unit](loggedInUserField)
-
   private val userMutation = fields[GraphQLContext, Unit](
-    loggedInUserField,
     Field(
       "update",
       userType,
@@ -59,19 +56,11 @@ object AuthWithHeader {
   )
 
   private val query =
-    ObjectType(
-      "Query",
-      fields[GraphQLContext, Unit](
-        Field(
-          "User",
-          ObjectType("UserType", fields[GraphQLContext, Unit](authenticateFields ++ userQuery: _*)),
-          resolve = _ => ()
-        )
-      ))
+    ObjectType("Query", viewerField +: loginField)
 
   private val mutation =
     ObjectType("Mutation",
-               authenticateFields ++ fields[GraphQLContext, Unit](
+               loginField ++ fields[GraphQLContext, Unit](
                  Field("UserY",
                        ObjectType("UserZ", fields[GraphQLContext, Unit](userMutation: _*)),
                        resolve = _ => ())

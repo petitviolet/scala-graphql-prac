@@ -81,7 +81,7 @@ object AuthWithUpdateCtx {
   private val query =
     ObjectType(
       "Query",
-      fields[GraphQLContext, Unit](
+      authenticateFields ++ fields[GraphQLContext, Unit](
         Field(
           "User",
           ObjectType("UserType", fields[GraphQLContext, Unit](authenticateFields ++ userQuery: _*)),
