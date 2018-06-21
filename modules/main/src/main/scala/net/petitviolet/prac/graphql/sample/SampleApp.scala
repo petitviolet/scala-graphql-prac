@@ -11,9 +11,11 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.Directives._
 import akka.http.scaladsl.server._
 import akka.stream.ActorMaterializer
+import sangria.ast.Document
 import sangria.execution.{ ErrorWithResolver, QueryAnalysisError, _ }
 import sangria.marshalling.sprayJson._
 import sangria.parser.QueryParser
+import sangria.renderer.SchemaRenderer
 import sangria.schema.Schema
 import spray.json.{ JsObject, JsString, JsValue }
 
@@ -26,6 +28,10 @@ trait GraphQLServerBase {
   protected def schema: Schema[Ctx, Unit]
   protected def context: Ctx
 
+  def showSchema: String = {
+    schema.renderPretty
+  }
+
   def execute(jsValue: JsValue)(implicit ec: ExecutionContext): Future[(StatusCode, JsValue)] = {
     val JsObject(fields) = jsValue
     val operation = fields.get("operationName") collect {
@@ -37,9 +43,9 @@ trait GraphQLServerBase {
       case _                   => JsObject.empty
     }
 
-    val Some(JsString(document)) = fields.get("query") orElse fields.get("mutation")
+    val Some(JsString(document)) = fields.get("query")
 
-    Future.fromTry(QueryParser.parse(document)) flatMap { queryDocument =>
+    Future.fromTry(QueryParser.parse(document)) flatMap { queryDocument: Document =>
       Executor
         .execute(
           schema,
@@ -75,6 +81,9 @@ class SampleApp(server: GraphQLServerBase) {
           complete(server.execute(jsValue))
         }
       } ~
+        (get & path("schema")) {
+          complete(server.showSchema)
+        } ~
         get {
           logRequestResult("/graphiql.html", Logging.InfoLevel) {
             getFromResource("graphiql.html")
