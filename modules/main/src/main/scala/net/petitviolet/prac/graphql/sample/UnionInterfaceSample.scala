@@ -23,11 +23,11 @@ import sangria.schema._
 object UnionInterfaceSampleApp extends SampleApp(AnimalGraphQLServer)
 
 private object AnimalGraphQLServer extends GraphQLServerBase {
-  override type Ctx = UnionInterfaceSampleSchema.AnimalRepository
+  override type Ctx = Unit
 
   override protected def schema = UnionInterfaceSampleSchema.schema
 
-  override protected def context = new UnionInterfaceSampleSchema.AnimalRepository()
+  override protected def context = ()
 }
 
 private object UnionInterfaceSampleSchema {
@@ -45,21 +45,6 @@ private object UnionInterfaceSampleSchema {
     case object Brown extends Color("#A52A2A")
   }
 
-  class AnimalRepository {
-    import scala.collection.mutable
-    private val data: mutable.Seq[Animal] = mutable.ListBuffer(
-      Dog("dog-1", "alice", "golden"),
-      Dog("dog-2", "bob", "Chihuahua"),
-      Cat("cat-1", "charlie", Color.Brown)
-    )
-
-    def findAll: Seq[Animal] = data.toList
-
-    def findById(id: String): Option[Animal] = data.find { a =>
-      a.id == id
-    }
-  }
-
   lazy val animalInterface: InterfaceType[Unit, Animal] = InterfaceType[Unit, Animal](
     "Animal",
     "animal interface",
@@ -68,8 +53,6 @@ private object UnionInterfaceSampleSchema {
       Field("name", StringType, resolve = ctx => ctx.value.name)
     )
   )
-
-  lazy val animalUnionType = UnionType[Unit]("AnimalUnion", types = dogType :: catType :: Nil)
 
   lazy val dogType = derive.deriveObjectType[Unit, Dog](
     derive.Interfaces[Unit, Dog](animalInterface)
@@ -81,16 +64,35 @@ private object UnionInterfaceSampleSchema {
     derive.Interfaces[Unit, Cat](animalInterface)
   )
 
-  private object args {}
+  val animalUnionType = UnionType[Unit](
+    "AnimalUnion",
+    types = dogType :: catType :: Nil
+  )
 
-  lazy val animalQuery: ObjectType[AnimalRepository, Unit] = {
+  lazy val animalQuery: ObjectType[Unit, Unit] = {
     ObjectType.apply(
       "AnimalQuery",
-      fields[AnimalRepository, Unit](
-        Field("all", ListType(animalInterface), resolve = ctx => ctx.ctx.findAll)
+      fields[Unit, Unit](
+        Field("all", ListType(animalInterface), resolve = { _ =>
+          Dog("dog-1", "alice", "golden") ::
+            Dog("dog-2", "bob", "Chihuahua") ::
+            Cat("cat-1", "charlie", Color.Brown) :: Nil
+        })
       )
     )
   }
-  lazy val schema: Schema[AnimalRepository, Unit] =
-    Schema(animalQuery, additionalTypes = animalUnionType.types)
+  lazy val schema: Schema[Unit, Unit] = {
+    // without additionalTypes, caused below exception
+    // Interface 'Animal' must be implemented by at least one object type.
+    Schema(animalQuery, additionalTypes = dogType :: catType :: Nil)
+//    Schema(animalQuery)
+//    Schema(animalQuery,
+//           validationRules = List(
+//             DefaultValuesValidationRule,
+//             InterfaceImplementationValidationRule,
+//             // InterfaceMustHaveImplementationValidationRule,
+//             SubscriptionFieldsValidationRule,
+//             SchemaValidationRule.defaultFullSchemaTraversalValidationRule
+//           ))
+  }
 }
