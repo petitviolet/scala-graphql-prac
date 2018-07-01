@@ -52,7 +52,7 @@ private object UnionInterfaceSampleSchema {
       Field("id", StringType, resolve = ctx => ctx.value.id),
       Field("name", StringType, resolve = ctx => ctx.value.name)
     )
-  )
+  ).withPossibleTypes(() => List(dogType, catType))
 
   lazy val dogType = derive.deriveObjectType[Unit, Dog](
     derive.Interfaces[Unit, Dog](animalInterface)
@@ -84,8 +84,8 @@ private object UnionInterfaceSampleSchema {
   lazy val schema: Schema[Unit, Unit] = {
     // without additionalTypes, caused below exception
     // Interface 'Animal' must be implemented by at least one object type.
-    Schema(animalQuery, additionalTypes = dogType :: catType :: Nil)
-//    Schema(animalQuery)
+//    Schema(animalQuery, additionalTypes = dogType :: catType :: Nil)
+    Schema(animalQuery)
 //    Schema(animalQuery,
 //           validationRules = List(
 //             DefaultValuesValidationRule,
