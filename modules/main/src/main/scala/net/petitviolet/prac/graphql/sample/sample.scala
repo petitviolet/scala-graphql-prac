@@ -1,8 +1,12 @@
 package net.petitviolet.prac.graphql.sample
 
+import java.util.concurrent.Executors
+
 import sangria.macros.derive
 import sangria.marshalling._
 import sangria.schema._
+
+import scala.concurrent.{ ExecutionContext, Future }
 
 object sample extends SampleApp(GraphQLServer)
 
@@ -16,6 +20,8 @@ private object GraphQLServer extends GraphQLServerBase {
 }
 
 private object SchemaSample {
+  implicit val ec = ExecutionContext.fromExecutor(Executors.newCachedThreadPool())
+
   case class MyObject(id: Long, name: String)
 
   class MyObjectRepository {
@@ -57,7 +63,7 @@ private object SchemaSample {
             resolve = ctx => ctx.ctx.findById(ctx.arg(idArg))
           )
         },
-        Field("all", ListType(myObjectType), resolve = ctx => ctx.ctx.findAll),
+        Field("all", ListType(myObjectType), resolve = ctx => Future { ctx.ctx.findAll })
       )
     )
   }
